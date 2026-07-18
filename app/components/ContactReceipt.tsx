@@ -183,8 +183,8 @@ export default function ContactReceipt() {
         background: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "stretch",
-        justifyContent: "flex-start",
+        alignItems: "flex-end",
+        justifyContent: "flex-end",
         animation: "receiptScrimIn 0.25s ease",
       }}
     >
@@ -194,14 +194,16 @@ export default function ContactReceipt() {
           position: "relative",
           width: "100%",
           maxWidth: 460,
-          height: "100%",
+          maxHeight: "92vh",
           overflowY: "auto",
           background: PAPER,
           color: INK,
           padding: "36px 32px 28px",
           boxSizing: "border-box",
           fontFamily: WORK_SANS,
-          boxShadow: "20px 0 80px rgba(0,0,0,0.5)",
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          boxShadow: "0 -12px 60px rgba(0,0,0,0.4)",
           animation: "receiptSlideIn 0.45s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
@@ -379,8 +381,8 @@ export default function ContactReceipt() {
       <style>{`
         @keyframes receiptScrimIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes receiptSlideIn {
-          from { opacity: 0; transform: translateX(-40px); }
-          to { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; transform: translateY(40px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
