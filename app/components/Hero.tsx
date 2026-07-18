@@ -5,10 +5,12 @@ import { useState, useEffect, useLayoutEffect, useRef } from "react";
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const MOBILE_BREAKPOINT = 768;
 const NAV_CLEARANCE = 54; // px — roughly the height of the fixed nav bar
-const MOBILE_TOP_TRIM = 0.3; // em of the font's internal leading to crop off
+const MOBILE_TOP_TRIM = 0.42; // em of the font's internal leading to crop off
+const TAGLINE_GAP = 8; // px — space between the name and "View Projects"
 const FIRST_LINE_INDENT = "1.7em"; // Champ-style indent on the tagline
 const TAGLINE_MIN = 22; // px — floor for the auto-fitted tagline
 const TAGLINE_MAX = 80; // px — ceiling for the auto-fitted tagline
+const TAGLINE_SCALE = 0.7; // step the fitted tagline down from full width
 
 export default function Hero({
   name = "brandon",
@@ -96,14 +98,14 @@ export default function Hero({
     });
   };
 
-  // Grow the tagline until its widest line reaches the right edge.
+  // Fit the tagline to the width, then step it down by TAGLINE_SCALE.
   const fitTagline = () => {
     const p = taglineRef.current;
     const wrap = taglineWrapRef.current;
     if (!p || !wrap) return;
 
     const wrapRect = wrap.getBoundingClientRect();
-    const target = wrapRect.width;
+    const target = wrapRect.width * TAGLINE_SCALE;
     if (target <= 0) return;
 
     const range = document.createRange();
@@ -319,7 +321,9 @@ export default function Hero({
         style={{
           width: "100%",
           boxSizing: "border-box",
-          padding: isMobile ? "24px 0 32px 0" : "16px 0 24px 0",
+          padding: isMobile
+            ? `${TAGLINE_GAP}px 0 32px 0`
+            : "16px 0 24px 0",
           fontSize: isMobile ? taglineSize : "clamp(28px, 4.6vw, 80px)",
         }}
       >
