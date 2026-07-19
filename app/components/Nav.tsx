@@ -13,6 +13,7 @@ type NavLink = { label: string; type: string; target: string };
 
 export default function Nav() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [brandHover, setBrandHover] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -187,6 +188,30 @@ export default function Nav() {
     whiteSpace: "nowrap",
   };
 
+  // On any page other than home, the left label becomes a home button.
+  const isHome = pathname === "/";
+
+  const brandLabel = isHome ? (
+    <span style={labelStyle}>(UX + Motion Designer)</span>
+  ) : (
+    <span
+      onClick={() => {
+        setMenuOpen(false);
+        goHome();
+      }}
+      onMouseEnter={() => setBrandHover(true)}
+      onMouseLeave={() => setBrandHover(false)}
+      style={{
+        ...labelStyle,
+        cursor: "pointer",
+        color: brandHover ? "#CDFE88" : "#FAFAFA",
+        transition: "color 0.2s ease",
+      }}
+    >
+      brandonwong.design
+    </span>
+  );
+
   const keyframes = `
     @keyframes ping { 0% { transform: scale(1); opacity: 0.6; } 75%, 100% { transform: scale(2.5); opacity: 0; } }
     @keyframes menuFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -217,7 +242,7 @@ export default function Nav() {
             fontFamily: "Manrope, sans-serif",
           }}
         >
-          <span style={labelStyle}>(UX + Motion Designer)</span>
+          {brandLabel}
 
           <button
             onClick={() => setMenuOpen((v) => !v)}
@@ -340,7 +365,7 @@ export default function Nav() {
           fontFamily: "Manrope, sans-serif",
         }}
       >
-        <span style={labelStyle}>(UX + Motion Designer)</span>
+        {brandLabel}
 
         <div
           style={{

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 export default function Ending() {
   const [hovered, setHovered] = useState<string | null>(null);
   const [time, setTime] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
 
   const links = [
     { label: "Email", href: "mailto:bwong127@asu.edu" },
@@ -14,6 +15,14 @@ export default function Ending() {
     },
     { label: "Instagram", href: "https://instagram.com/bcw.png" },
   ];
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const updateTime = () =>
@@ -54,16 +63,16 @@ export default function Ending() {
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 80 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#757575", letterSpacing: "0.02em", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#757575", letterSpacing: "0.02em", display: "flex", flexDirection: isMobile ? "row" : "column", gap: isMobile ? 5 : 4, flexShrink: 0 }}>
           <span>{time}</span>
-          <span>Pacific Standard Time</span>
+          <span>{isMobile ? "PT" : "Pacific Standard Time"}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
           <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
             <div style={{ position: "absolute", width: 8, height: 8, borderRadius: "50%", background: "#CDFE88", animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite", opacity: 0.6 }} />
             <div style={{ position: "absolute", width: 8, height: 8, borderRadius: "50%", background: "#CDFE88" }} />
           </div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#757575", letterSpacing: "0.02em" }}>Open to new opportunities</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#757575", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>Open to new opportunities</span>
         </div>
       </div>
 

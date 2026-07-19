@@ -9,14 +9,15 @@ const STICKY_TOP = 72; // px — where cards pin, below the fixed nav
 const STACK_GAP = 40; // px — vertical space between stacked cards
 const FOLD_SCALE = 0.08; // how much a covered card shrinks
 const FOLD_DIM = 0.45; // how much a covered card darkens
+const COVERED_AT = 0.5; // fold value past which a card counts as buried
 
 type Project = {
   title: string;
   tag: string;
+  year: string;
   href: string;
   video: string;
-  posterTime?: number; // seconds — frame shown before hover
-  hoverStart?: number; // seconds — where playback begins on hover
+  posterTime?: number; // seconds — the frame held before playback
 };
 
 function Chip({ label }: { label: string }) {
@@ -35,6 +36,7 @@ function Chip({ label }: { label: string }) {
         letterSpacing: "0.08em",
         textTransform: "uppercase",
         whiteSpace: "nowrap",
+        flexShrink: 0,
       }}
     >
       {label}
@@ -42,78 +44,126 @@ function Chip({ label }: { label: string }) {
   );
 }
 
-function TagChips({ tag }: { tag: string }) {
-  const parts = tag.split("·").map((p) => p.trim()).filter(Boolean);
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-      {parts.map((part) => (
-        <Chip key={part} label={part} />
-      ))}
-    </div>
-  );
-}
-
-function CardMeta({
+/* One-line meta row: title ......... chips │ year */
+function MetaRow({
   title,
-  children,
+  chips,
+  year,
   large = false,
 }: {
   title: string;
-  children: React.ReactNode;
+  chips: string[];
+  year?: string;
   large?: boolean;
 }) {
   return (
-    <div style={{ padding: "16px 4px 0 4px" }}>
-      {children}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "nowrap",
+        gap: 12,
+        padding: "16px 4px 0 4px",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
       <span
         style={{
-          fontSize: large ? "clamp(22px, 6vw, 32px)" : "clamp(18px, 2vw, 28px)",
+          fontSize: large ? "clamp(17px, 4.6vw, 24px)" : "clamp(18px, 2vw, 28px)",
           fontWeight: 800,
           color: "#FAFAFA",
           letterSpacing: "-0.03em",
           lineHeight: 1.1,
-          display: "block",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          minWidth: 0,
+          flexShrink: 1,
         }}
       >
         {title}
       </span>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginLeft: "auto",
+          flexShrink: 0,
+        }}
+      >
+        {chips.map((c) => (
+          <Chip key={c} label={c} />
+        ))}
+
+        {year && (
+          <>
+            <span
+              style={{
+                width: 1,
+                height: 14,
+                background: "#2a2a2a",
+                flexShrink: 0,
+                margin: "0 2px",
+              }}
+            />
+            <Chip label={year} />
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-/* ---------- DESKTOP ---------- */
-
-function ProjectCard({ project, index }: { project: Project; index: number }) {
-  const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+/* Holds a still frame from the video without needing a poster file. */
+function usePosterFrame(posterTime: number) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const posterTime = project.posterTime;
-  const hasPoster = typeof posterTime === "number";
-  const hoverStart =
-    typeof project.hoverStart === "number" ? project.hoverStart : 0;
-
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
+    const v = videoRef.current;
+    if (!v) return;
+
+    const seek = () => {
+      try {
+        // A tiny offset avoids browsers that render nothing at exactly 0.
+        v.currentTime = posterTime > 0 ? posterTime : 0.05;
+      } catch {}
+    };
+
+    if (v.readyState >= 1) seek();
+    else v.addEventListener("loadedmetadata", seek, { once: true });
+
+    return () => v.removeEventListener("loadedmetadata", seek);
+  }, [posterTime]);
+
+  return videoRef;
+}
+
+const splitTags = (tag: string) =>
+  tag.split("·").map((p) => p.trim()).filter(Boolean);
+
+const openReel = () => window.open(YOUTUBE_URL, "_blank", "noopener,noreferrer");
+
+const videoStyle: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  objectPosition: "50% 50%",
+  display: "block",
+};
+
+/* ---------- DESKTOP ---------- */
+
+function ProjectCard({ project }: { project: Project }) {
+  const posterTime = project.posterTime ?? 0;
+  const videoRef = usePosterFrame(posterTime);
+  const [hovered, setHovered] = useState(false);
 
   const handleEnter = () => {
     setHovered(true);
-    const v = videoRef.current;
-    if (!v) return;
-    v.currentTime = hoverStart;
-    v.play().catch(() => {});
+    videoRef.current?.play().catch(() => {});
   };
 
   const handleLeave = () => {
@@ -121,23 +171,17 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
     const v = videoRef.current;
     if (!v) return;
     v.pause();
-    v.currentTime = hasPoster ? (posterTime as number) : 0;
+    try {
+      v.currentTime = posterTime > 0 ? posterTime : 0.05;
+    } catch {}
   };
 
   return (
     <Link href={project.href} style={{ textDecoration: "none" }}>
       <div
-        ref={ref}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
-        style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0px)" : "translateY(50px)",
-          transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
-          display: "flex",
-          flexDirection: "column",
-          cursor: "pointer",
-        }}
+        style={{ display: "flex", flexDirection: "column", cursor: "pointer" }}
       >
         <div
           style={{
@@ -151,64 +195,51 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
         >
           <video
             ref={videoRef}
-            src={hasPoster ? `${project.video}#t=${posterTime}` : project.video}
+            src={project.video}
             loop
             muted
             playsInline
             preload="metadata"
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "50% 50%",
-              display: "block",
+              ...videoStyle,
               transform: hovered ? "scale(1.04)" : "scale(1)",
               transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
             }}
           />
         </div>
-        <CardMeta title={project.title}>
-          <TagChips tag={project.tag} />
-        </CardMeta>
+        <MetaRow
+          title={project.title}
+          chips={splitTags(project.tag)}
+          year={project.year}
+        />
       </div>
     </Link>
   );
 }
 
-function ShowreelCard({ index }: { index: number }) {
-  const [visible, setVisible] = useState(false);
+function ShowreelCard() {
   const [hovered, setHovered] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div
-      ref={ref}
+      role="link"
+      tabIndex={0}
+      aria-label="Watch the showreel on YouTube"
+      onClick={openReel}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openReel();
+        }
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         gridColumn: "1 / -1",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0px)" : "translateY(50px)",
-        transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
         display: "flex",
         flexDirection: "column",
         cursor: "pointer",
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={() => window.open(YOUTUBE_URL, "_blank")}
     >
       <div
         style={{
@@ -218,60 +249,30 @@ function ShowreelCard({ index }: { index: number }) {
           borderRadius: 4,
           border: "0.5px solid #2a2a2a",
           overflow: "hidden",
-          position: "relative",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#333",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          Showreel Thumbnail
-        </span>
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            background: "rgba(0,0,0,0.4)",
+            width: 64,
+            height: 64,
+            borderRadius: "50%",
+            border: "1.5px solid #FAFAFA",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            opacity: hovered ? 1 : 0,
-            transition: "opacity 0.3s ease",
+            transform: hovered ? "scale(1)" : "scale(0.85)",
+            transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
           }}
         >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              border: "1.5px solid #FAFAFA",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transform: hovered ? "scale(1)" : "scale(0.85)",
-              transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="#FAFAFA">
-              <polygon points="5,3 19,12 5,21" />
-            </svg>
-          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#FAFAFA">
+            <polygon points="5,3 19,12 5,21" />
+          </svg>
         </div>
       </div>
-      <CardMeta title="Showreel">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-          <Chip label="Motion" />
-          <Chip label="Coming Soon!" />
-        </div>
-      </CardMeta>
+      <MetaRow title="Showreel" chips={["Motion", "Coming Soon"]} />
     </div>
   );
 }
@@ -288,30 +289,36 @@ const mobileFrame: React.CSSProperties = {
   position: "relative",
 };
 
-function MobileProjectCard({ project }: { project: Project }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+function MobileProjectCard({
+  project,
+  covered,
+}: {
+  project: Project;
+  covered: boolean;
+}) {
+  const posterTime = project.posterTime ?? 0;
+  const videoRef = usePosterFrame(posterTime);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const posterTime = project.posterTime;
-  const hasPoster = typeof posterTime === "number";
+  const [inView, setInView] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        const v = videoRef.current;
-        if (!v) return;
-        if (entry.isIntersecting) {
-          v.play().catch(() => {});
-        } else {
-          v.pause();
-        }
-      },
+      ([entry]) => setInView(entry.isIntersecting),
       { threshold: 0.4 }
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Only the card you're actually looking at is allowed to decode.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (inView && !covered) v.play().catch(() => {});
+    else v.pause();
+  }, [inView, covered, videoRef]);
 
   return (
     <Link href={project.href} style={{ textDecoration: "none" }}>
@@ -327,24 +334,20 @@ function MobileProjectCard({ project }: { project: Project }) {
         <div style={mobileFrame}>
           <video
             ref={videoRef}
-            src={hasPoster ? `${project.video}#t=${posterTime}` : project.video}
+            src={project.video}
             loop
             muted
             playsInline
-            autoPlay
             preload="metadata"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: "50% 50%",
-              display: "block",
-            }}
+            style={videoStyle}
           />
         </div>
-        <CardMeta title={project.title} large>
-          <TagChips tag={project.tag} />
-        </CardMeta>
+        <MetaRow
+          title={project.title}
+          chips={splitTags(project.tag)}
+          year={project.year}
+          large
+        />
       </div>
     </Link>
   );
@@ -353,7 +356,16 @@ function MobileProjectCard({ project }: { project: Project }) {
 function MobileShowreelCard() {
   return (
     <div
-      onClick={() => window.open(YOUTUBE_URL, "_blank")}
+      role="link"
+      tabIndex={0}
+      aria-label="Watch the showreel on YouTube"
+      onClick={openReel}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openReel();
+        }
+      }}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -386,12 +398,7 @@ function MobileShowreelCard() {
           </svg>
         </div>
       </div>
-      <CardMeta title="Showreel" large>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-          <Chip label="Motion" />
-          <Chip label="Coming Soon!" />
-        </div>
-      </CardMeta>
+      <MetaRow title="Showreel" chips={["Motion", "Coming Soon"]} large />
     </div>
   );
 }
@@ -433,18 +440,13 @@ function MobileStack({ projects }: { projects: Project[] }) {
     };
   }, [total]);
 
-  const items = [
-    ...projects.map((p) => <MobileProjectCard key={p.title} project={p} />),
-    <MobileShowreelCard key="showreel" />,
-  ];
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: STACK_GAP }}>
-      {items.map((item, i) => {
+      {projects.map((p, i) => {
         const fold = folds[i] ?? 0;
         return (
           <div
-            key={i}
+            key={p.title}
             ref={(el) => {
               itemRefs.current[i] = el;
             }}
@@ -458,10 +460,24 @@ function MobileStack({ projects }: { projects: Project[] }) {
               willChange: "transform, opacity",
             }}
           >
-            {item}
+            <MobileProjectCard project={p} covered={fold > COVERED_AT} />
           </div>
         );
       })}
+
+      <div
+        ref={(el) => {
+          itemRefs.current[projects.length] = el;
+        }}
+        style={{
+          position: "sticky",
+          top: STICKY_TOP,
+          zIndex: projects.length + 1,
+          transformOrigin: "50% 0%",
+        }}
+      >
+        <MobileShowreelCard />
+      </div>
     </div>
   );
 }
@@ -470,8 +486,10 @@ function MobileStack({ projects }: { projects: Project[] }) {
 
 export default function PortfolioSection() {
   const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
     const update = () => setIsMobile(mq.matches);
     update();
@@ -483,33 +501,37 @@ export default function PortfolioSection() {
     {
       title: "Curve Biosciences",
       tag: "Digital Design",
+      year: "2026",
       href: "/curve",
       video: "/curve.mp4",
       posterTime: 6.5,
     },
     {
+      title: "HackDavis",
+      tag: "UX/UI · Mobile",
+      year: "2025",
+      href: "/hackdavis",
+      video: "/hackdavis.mp4",
+      posterTime: 0.7,
+    },
+    {
       title: "Treevah",
       tag: "UX/UI · AI Integration",
+      year: "2024",
       href: "/treevah",
       video: "/treevah.mp4",
     },
     {
-      title: "HackDavis",
-      tag: "UX/UI · Mobile",
-      href: "/hackdavis",
-      video: "/hackdavis.mp4",
-      hoverStart: 0.7,
-    },
-    {
       title: "San Jose City College",
       tag: "Motion · Video Production",
+      year: "2023",
       href: "/sjcc",
       video: "/sjcc.mp4",
       posterTime: 0.9,
     },
   ];
 
-  if (isMobile) {
+  if (mounted && isMobile) {
     return (
       <div
         id="projects"
@@ -538,10 +560,10 @@ export default function PortfolioSection() {
         gap: 32,
       }}
     >
-      {projects.map((p, i) => (
-        <ProjectCard key={p.title} project={p} index={i} />
+      {projects.map((p) => (
+        <ProjectCard key={p.title} project={p} />
       ))}
-      <ShowreelCard index={5} />
+      <ShowreelCard />
     </div>
   );
 }
