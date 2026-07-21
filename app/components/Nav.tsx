@@ -15,6 +15,7 @@ export default function Nav() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [brandHover, setBrandHover] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [inProjects, setInProjects] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,11 +31,39 @@ export default function Nav() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
+  // Scroll state + which section you're currently in.
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    let raf = 0;
+
+    const measure = () => {
+      raf = 0;
+      setScrolled(window.scrollY > 20);
+
+      const projects = document.getElementById("projects");
+      if (!projects) {
+        setInProjects(false);
+        return;
+      }
+      const rect = projects.getBoundingClientRect();
+      // Active once the section reaches the upper third of the viewport
+      // and until its bottom scrolls past that same line.
+      const marker = window.innerHeight * 0.34;
+      setInProjects(rect.top <= marker && rect.bottom > marker);
+    };
+
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(measure);
+    };
+
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [pathname]);
 
   // close the menu if the viewport grows back to desktop
   useEffect(() => {
@@ -96,6 +125,15 @@ export default function Nav() {
   ];
   const allLinks: NavLink[] = [...row1, ...row2];
 
+  // Which single link is "where you are" right now.
+  const activeLabel = (() => {
+    if (pathname === "/") return inProjects ? "Projects," : "Home,";
+    const match = allLinks.find(
+      (l) => l.type === "page" && l.target === pathname
+    );
+    return match ? match.label : null;
+  })();
+
   const activateLink = (link: NavLink) => {
     if (link.type === "home") {
       goHome();
@@ -110,10 +148,13 @@ export default function Nav() {
     }
   };
 
-  const isCurrent = (link: NavLink) => {
-    if (link.type === "home") return pathname === "/";
-    if (link.type === "page") return pathname === link.target;
-    return false;
+  // Hover wins; when nothing is hovered, the active link is lit.
+  const linkColor = (label: string) => {
+    if (hoveredLink !== null) {
+      return hoveredLink === label ? "#FAFAFA" : "#707070";
+    }
+    if (activeLabel === null) return "#FAFAFA";
+    return activeLabel === label ? "#FAFAFA" : "#707070";
   };
 
   const linkStyle = (label: string) => ({
@@ -124,13 +165,8 @@ export default function Nav() {
     letterSpacing: "0.01em",
     paddingRight: 4,
     textDecoration: "none",
-    transition: "color 0.2s ease",
-    color:
-      hoveredLink === null
-        ? "#FAFAFA"
-        : hoveredLink === label
-        ? "#FAFAFA"
-        : "#707070",
+    transition: "color 0.25s ease",
+    color: linkColor(label),
   });
 
   const renderLink = (link: NavLink) => {
@@ -312,7 +348,8 @@ export default function Nav() {
                     fontWeight: 800,
                     letterSpacing: "-0.03em",
                     lineHeight: 1.06,
-                    color: isCurrent(link) ? "#707070" : "#FAFAFA",
+                    color:
+                      activeLabel === link.label ? "#707070" : "#FAFAFA",
                     cursor: "pointer",
                     userSelect: "none",
                     animation: `menuItemIn 0.5s cubic-bezier(0.16,1,0.3,1) ${

@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useRef } from "react";
 
+// ---- swap this one line to change the Curve logo ----
+const CURVE_LOGO = "/curve-logo-2.svg";
+
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
@@ -13,10 +16,10 @@ const MOBILE_BREAKPOINT = 768;
 const PHOTO_SRC = "/brandon.jpg";
 
 const LOGOS: Record<string, string | null> = {
-  "Curve Biosciences": "/curve-logo.svg",
-  Treevah: null,
-  "San Jose City College": null,
-  BRIDGEGOOD: null,
+  "Curve Biosciences": CURVE_LOGO,
+  Treevah: "/treevah-logo.png",
+  "San Jose City College": "/sjcc-logo.svg",
+  BRIDGEGOOD: "/bridgegood-logo.png",
 };
 
 const EXPERIENCE = [
@@ -92,35 +95,10 @@ const LINKS = [
   },
 ];
 
-// --- colophon data, pulled from the same constants the page uses ---
-const SWATCHES = [
-  { name: "Ink", hex: INK },
-  { name: "Base", hex: BG },
-  { name: "Panel", hex: PANEL },
-  { name: "Rule", hex: LINE },
-  { name: "Dim", hex: DIM },
-  { name: "Accent", hex: ACCENT },
-];
-
-const TYPE_SCALE = [
-  { sample: "Display", weight: 800, size: 34, spec: "800 / -0.05em" },
-  { sample: "Heading", weight: 700, size: 22, spec: "700 / -0.03em" },
-  { sample: "Body copy", weight: 500, size: 15, spec: "500 / -0.01em" },
-  { sample: "MICRO LABEL", weight: 600, size: 10, spec: "600 / 0.12em" },
-];
-
-const STACK = [
-  { label: "Framework", value: "Next.js 16" },
-  { label: "Language", value: "TypeScript" },
-  { label: "Typeface", value: "Manrope" },
-  { label: "Hosting", value: "Vercel" },
-  { label: "Design", value: "Figma" },
-  { label: "Built by", value: "Brandon Wong" },
-];
-
 export default function AboutSection() {
   const [isMobile, setIsMobile] = useState(false);
   const [reduced, setReduced] = useState(false);
+  const [failedLogos, setFailedLogos] = useState<Record<string, boolean>>({});
 
   const line1Ref = useRef<HTMLSpanElement>(null);
   const line2Ref = useRef<HTMLSpanElement>(null);
@@ -200,7 +178,7 @@ export default function AboutSection() {
   );
 
   const logoPlate = (org: string) => {
-    const src = LOGOS[org];
+    const src = failedLogos[org] ? null : LOGOS[org];
     return (
       <div
         style={{
@@ -220,6 +198,9 @@ export default function AboutSection() {
           <img
             src={src}
             alt=""
+            onError={() =>
+              setFailedLogos((prev) => ({ ...prev, [org]: true }))
+            }
             style={{
               width: "70%",
               height: "70%",
@@ -424,7 +405,7 @@ export default function AboutSection() {
         }}
       >
         <span style={{ color: INK }}>Design is a form of communication.</span>{" "}
-        The work is deciding what to leave out.
+        Motion is how it speaks.
       </p>
 
       {/* ---- 01 experience ---- */}
@@ -610,175 +591,6 @@ export default function AboutSection() {
                 link.label
               )
             )}
-          </div>
-        </div>
-      </div>
-
-      {/* ---- 04 colophon ---- */}
-      <div style={{ marginTop: isMobile ? 72 : 130 }}>
-        {sectionHead("04", "Colophon")}
-
-        <p
-          style={{
-            fontSize: isMobile ? 15 : 17,
-            fontWeight: 500,
-            color: DIM,
-            letterSpacing: "-0.01em",
-            lineHeight: 1.55,
-            marginTop: 0,
-            marginBottom: isMobile ? 32 : 40,
-            maxWidth: 520,
-          }}
-        >
-          This site runs on a six-value palette and four type sizes. Designed and
-          built end to end.
-        </p>
-
-        {/* palette */}
-        <span style={{ ...micro, display: "block", marginBottom: 14 }}>
-          Palette
-        </span>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "repeat(3, 1fr)"
-              : "repeat(6, 1fr)",
-            gap: isMobile ? 10 : 14,
-            marginBottom: isMobile ? 40 : 56,
-          }}
-        >
-          {SWATCHES.map((s) => (
-            <div key={s.name}>
-              <div
-                style={{
-                  width: "100%",
-                  aspectRatio: "1/1",
-                  background: s.hex,
-                  border: `1px solid ${LINE}`,
-                  borderRadius: 8,
-                }}
-              />
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: INK,
-                  letterSpacing: "-0.01em",
-                  marginTop: 8,
-                }}
-              >
-                {s.name}
-              </span>
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 10,
-                  fontWeight: 500,
-                  color: DIM,
-                  letterSpacing: "0.06em",
-                  marginTop: 2,
-                }}
-              >
-                {s.hex.toUpperCase()}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* type scale + stack */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr",
-            gap: isMobile ? 40 : 64,
-          }}
-        >
-          <div>
-            <span style={{ ...micro, display: "block", marginBottom: 14 }}>
-              Type — Manrope
-            </span>
-            <div style={{ borderTop: `1px solid ${LINE}` }}>
-              {TYPE_SCALE.map((t) => (
-                <div
-                  key={t.sample}
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    gap: 20,
-                    paddingTop: 14,
-                    paddingBottom: 14,
-                    borderBottom: `1px solid ${LINE}`,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: t.size,
-                      fontWeight: t.weight,
-                      color: INK,
-                      letterSpacing:
-                        t.size <= 10 ? "0.12em" : "-0.02em",
-                      lineHeight: 1.1,
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {t.sample}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 500,
-                      color: DIM,
-                      letterSpacing: "0.06em",
-                      flexShrink: 0,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {t.spec}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span style={{ ...micro, display: "block", marginBottom: 14 }}>
-              Built with
-            </span>
-            <div style={{ borderTop: `1px solid ${LINE}` }}>
-              {STACK.map((s) => (
-                <div
-                  key={s.label}
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    paddingTop: 12,
-                    paddingBottom: 12,
-                    borderBottom: `1px solid ${LINE}`,
-                  }}
-                >
-                  <span style={{ ...micro, flexShrink: 0 }}>{s.label}</span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: INK,
-                      letterSpacing: "-0.01em",
-                      textAlign: "right",
-                    }}
-                  >
-                    {s.value}
-                  </span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
