@@ -11,8 +11,8 @@ type Project = {
   year: string;
   href: string;
   video: string;
-  posterTime?: number; // seconds — frame shown before hover
-  hoverStart?: number; // seconds — where playback begins on hover
+  posterTime?: number;
+  hoverStart?: number;
 };
 
 const chipStyle: React.CSSProperties = {
@@ -46,27 +46,13 @@ function MetaRow({ title, tag, year }: { title: string; tag: string; year: strin
         {title}
       </span>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         {parts.map((part) => (
           <span key={part} style={chipStyle}>
             {part}
           </span>
         ))}
-        <span
-          style={{
-            width: 1,
-            height: 18,
-            background: "#404040",
-            flexShrink: 0,
-          }}
-        />
+        <span style={{ width: 1, height: 18, background: "#404040", flexShrink: 0 }} />
         <span style={chipStyle}>{year}</span>
       </div>
     </div>
@@ -75,6 +61,7 @@ function MetaRow({ title, tag, year }: { title: string; tag: string; year: strin
 
 function ProjectCard({ project, index }: { project: Project; index: number }) {
   const [visible, setVisible] = useState(false);
+  const [near, setNear] = useState(false); // card is close to viewport → allow video to load
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -84,6 +71,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
   const hoverStart =
     typeof project.hoverStart === "number" ? project.hoverStart : 0;
 
+  // fade-in when card enters view
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -98,10 +86,27 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
     return () => observer.disconnect();
   }, []);
 
+  // allow the video to start loading only when the card is near the viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setNear(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px" } // start prepping ~600px before it scrolls in
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
   const handleEnter = () => {
     setHovered(true);
     const v = videoRef.current;
     if (!v) return;
+    // ensure it's loading, then play from the hover start point
+    v.preload = "auto";
     v.currentTime = hoverStart;
     v.play().catch(() => {});
   };
@@ -113,6 +118,8 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
     v.pause();
     v.currentTime = hasPoster ? (posterTime as number) : 0;
   };
+
+  const src = hasPoster ? `${project.video}#t=${posterTime}` : project.video;
 
   return (
     <div className="card-slot">
@@ -141,23 +148,27 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
               overflow: "hidden",
             }}
           >
-            <video
-              ref={videoRef}
-              src={hasPoster ? `${project.video}#t=${posterTime}` : project.video}
-              loop
-              muted
-              playsInline
-              preload="metadata"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                objectPosition: "50% 50%",
-                display: "block",
-                transform: hovered ? "scale(1.04)" : "scale(1)",
-                transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
-              }}
-            />
+            {near ? (
+              <video
+                ref={videoRef}
+                src={src}
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "50% 50%",
+                  display: "block",
+                  transform: hovered ? "scale(1.04)" : "scale(1)",
+                  transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
+                }}
+              />
+            ) : (
+              <div style={{ width: "100%", height: "100%", background: "#1e1e1e" }} />
+            )}
           </div>
 
           <MetaRow title={project.title} tag={project.tag} year={project.year} />
@@ -305,11 +316,7 @@ export default function PortfolioSection() {
     <div
       id="projects"
       className="projects-grid"
-      style={{
-        width: "100%",
-        background: "#121212",
-        boxSizing: "border-box",
-      }}
+      style={{ width: "100%", background: "#121212", boxSizing: "border-box" }}
     >
       <style>{`
         .projects-grid {
@@ -319,11 +326,7 @@ export default function PortfolioSection() {
           row-gap: 104px;
           padding: 96px 48px 120px;
         }
-
-        .showreel-slot {
-          grid-column: 1 / -1;
-        }
-
+        .showreel-slot { grid-column: 1 / -1; }
         .card-meta {
           display: flex;
           align-items: center;
@@ -331,42 +334,25 @@ export default function PortfolioSection() {
           gap: 16px;
           padding: 24px 4px 0 4px;
         }
-
         @media (max-width: 1100px) {
-          .projects-grid {
-            row-gap: 80px;
-          }
+          .projects-grid { row-gap: 80px; }
         }
-
         @media (max-width: 900px) {
           .projects-grid {
             grid-template-columns: 1fr;
             row-gap: 0;
             padding: 56px 20px 80px;
           }
-
-          /* each card sticks, the next one slides over it */
           .card-slot {
             position: sticky;
             top: 80px;
             padding-bottom: 56px;
           }
-
-          .card-meta {
-            padding-top: 16px;
-            gap: 12px;
-          }
-
-          .card-meta > span:first-child {
-            font-size: 24px;
-          }
+          .card-meta { padding-top: 16px; gap: 12px; }
+          .card-meta > span:first-child { font-size: 24px; }
         }
-
         @media (max-width: 520px) {
-          .card-meta {
-            flex-direction: column;
-            align-items: flex-start;
-          }
+          .card-meta { flex-direction: column; align-items: flex-start; }
         }
       `}</style>
 
