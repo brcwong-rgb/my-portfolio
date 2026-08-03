@@ -59,9 +59,18 @@ function MetaRow({ title, tag, year }: { title: string; tag: string; year: strin
   );
 }
 
-function ProjectCard({ project, index }: { project: Project; index: number }) {
-  const [visible, setVisible] = useState(false);
-  const [near, setNear] = useState(false); // card is close to viewport → allow video to load
+function ProjectCard({
+  project,
+  index,
+  eager,
+}: {
+  project: Project;
+  index: number;
+  eager?: boolean;
+}) {
+  // eager cards (top row) start visible + loaded immediately
+  const [visible, setVisible] = useState(!!eager);
+  const [near, setNear] = useState(!!eager);
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -71,8 +80,9 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
   const hoverStart =
     typeof project.hoverStart === "number" ? project.hoverStart : 0;
 
-  // fade-in when card enters view
+  // fade-in when card enters view (skipped if already eager)
   useEffect(() => {
+    if (eager) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -84,10 +94,11 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, []);
+  }, [eager]);
 
-  // allow the video to start loading only when the card is near the viewport
+  // allow the video to load when near the viewport (skipped if already eager)
   useEffect(() => {
+    if (eager) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -95,17 +106,16 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           observer.disconnect();
         }
       },
-      { rootMargin: "600px" } // start prepping ~600px before it scrolls in
+      { rootMargin: "600px" }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, []);
+  }, [eager]);
 
   const handleEnter = () => {
     setHovered(true);
     const v = videoRef.current;
     if (!v) return;
-    // ensure it's loading, then play from the hover start point
     v.preload = "auto";
     v.currentTime = hoverStart;
     v.play().catch(() => {});
@@ -155,7 +165,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
                 loop
                 muted
                 playsInline
-                preload="metadata"
+                preload={eager ? "auto" : "metadata"}
                 style={{
                   width: "100%",
                   height: "100%",
@@ -324,7 +334,7 @@ export default function PortfolioSection() {
           grid-template-columns: 1fr 1fr;
           column-gap: 32px;
           row-gap: 104px;
-          padding: 96px 48px 120px;
+          padding: 48px 48px 120px;
         }
         .showreel-slot { grid-column: 1 / -1; }
         .card-meta {
@@ -341,7 +351,7 @@ export default function PortfolioSection() {
           .projects-grid {
             grid-template-columns: 1fr;
             row-gap: 0;
-            padding: 56px 20px 80px;
+            padding: 40px 20px 80px;
           }
           .card-slot {
             position: sticky;
@@ -357,7 +367,7 @@ export default function PortfolioSection() {
       `}</style>
 
       {projects.map((p, i) => (
-        <ProjectCard key={p.title} project={p} index={i} />
+        <ProjectCard key={p.title} project={p} index={i} eager={i < 2} />
       ))}
       <ShowreelCard index={5} />
     </div>
