@@ -7,83 +7,34 @@ import ContactReceipt from "./ContactReceipt";
 
 const LINKEDIN_URL = "https://www.linkedin.com/in/brandon-wong-43449827a/";
 const RESUME_URL = "/brandon-wong-resume.pdf";
-const MOBILE_BREAKPOINT = 768;
-
-type NavLink = { label: string; type: string; target: string };
 
 export default function Nav() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
-  const [brandHover, setBrandHover] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [inProjects, setInProjects] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"home" | "projects">("home");
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    setMounted(true);
-    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-
-  // Scroll state + which section you're currently in.
-  useEffect(() => {
-    let raf = 0;
-
-    const measure = () => {
-      raf = 0;
-      setScrolled(window.scrollY > 20);
-
-      const projects = document.getElementById("projects");
-      if (!projects) {
-        setInProjects(false);
-        return;
-      }
-      const rect = projects.getBoundingClientRect();
-      // Active once the section reaches the upper third of the viewport
-      // and until its bottom scrolls past that same line.
-      const marker = window.innerHeight * 0.34;
-      setInProjects(rect.top <= marker && rect.bottom > marker);
-    };
+    if (pathname !== "/") return;
 
     const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(measure);
+      const projectsEl = document.getElementById("projects");
+      if (!projectsEl) {
+        setActiveSection("home");
+        return;
+      }
+      const top = projectsEl.getBoundingClientRect().top;
+      if (top <= window.innerHeight * 0.4) {
+        setActiveSection("projects");
+      } else {
+        setActiveSection("home");
+      }
     };
 
-    measure();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
-
-  // close the menu if the viewport grows back to desktop
-  useEffect(() => {
-    if (!isMobile) setMenuOpen(false);
-  }, [isMobile]);
-
-  // lock scroll + escape to close while the menu is open
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [menuOpen]);
 
   const scrollToId = (id: string) => {
     const el = document.getElementById(id);
@@ -112,68 +63,56 @@ export default function Nav() {
     }
   };
 
-  const row1: NavLink[] = [
+  const row1 = [
     { label: "Home,", type: "home", target: "" },
     { label: "Projects,", type: "section", target: "projects" },
     { label: "Showreel,", type: "page", target: "/showreel" },
   ];
-  const row2: NavLink[] = [
+  const row2 = [
     { label: "About,", type: "page", target: "/about" },
     { label: "LinkedIn,", type: "external", target: LINKEDIN_URL },
     { label: "Resume,", type: "external", target: RESUME_URL },
     { label: "Contact", type: "contact", target: "" },
   ];
-  const allLinks: NavLink[] = [...row1, ...row2];
 
-  // Which single link is "where you are" right now.
-  const activeLabel = (() => {
-    if (pathname === "/") return inProjects ? "Projects," : "Home,";
-    const match = allLinks.find(
-      (l) => l.type === "page" && l.target === pathname
-    );
-    return match ? match.label : null;
-  })();
-
-  const activateLink = (link: NavLink) => {
-    if (link.type === "home") {
-      goHome();
-    } else if (link.type === "section") {
-      goToSection(link.target);
-    } else if (link.type === "external") {
-      openExternal(link.target);
-    } else if (link.type === "page") {
-      router.push(link.target);
-    } else if (link.type === "contact") {
-      window.dispatchEvent(new Event("open-contact"));
+  const isActive = (link: { type: string; target: string }) => {
+    if (pathname === "/") {
+      if (link.type === "home") return activeSection === "home";
+      if (link.type === "section" && link.target === "projects")
+        return activeSection === "projects";
+      return false;
     }
+    if (link.type === "page") return pathname === link.target;
+    return false;
   };
 
-  // Hover wins; when nothing is hovered, the active link is lit.
-  const linkColor = (label: string) => {
+  const linkStyle = (link: { label: string; type: string; target: string }) => {
+    const active = isActive(link);
+    let opacity: number;
     if (hoveredLink !== null) {
-      return hoveredLink === label ? "#FAFAFA" : "#707070";
+      opacity = hoveredLink === link.label ? 1 : 0.5;
+    } else {
+      opacity = active ? 1 : 0.5;
     }
-    if (activeLabel === null) return "#FAFAFA";
-    return activeLabel === label ? "#FAFAFA" : "#707070";
+    return {
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: "pointer",
+      whiteSpace: "nowrap" as const,
+      letterSpacing: "0.01em",
+      paddingRight: 4,
+      textDecoration: "none",
+      transition: "opacity 0.25s ease",
+      color: "#FAFAFA",
+      opacity,
+    };
   };
 
-  const linkStyle = (label: string) => ({
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    whiteSpace: "nowrap" as const,
-    letterSpacing: "0.01em",
-    paddingRight: 4,
-    textDecoration: "none",
-    transition: "color 0.25s ease",
-    color: linkColor(label),
-  });
-
-  const renderLink = (link: NavLink) => {
+  const renderLink = (link: { label: string; type: string; target: string }) => {
     const hoverProps = {
       onMouseEnter: () => setHoveredLink(link.label),
       onMouseLeave: () => setHoveredLink(null),
-      style: linkStyle(link.label),
+      style: linkStyle(link),
     };
 
     if (link.type === "page") {
@@ -185,206 +124,47 @@ export default function Nav() {
     }
 
     return (
-      <span key={link.label} onClick={() => activateLink(link)} {...hoverProps}>
+      <span
+        key={link.label}
+        onClick={() => {
+          if (link.type === "home") {
+            goHome();
+          } else if (link.type === "section") {
+            goToSection(link.target);
+          } else if (link.type === "external") {
+            openExternal(link.target);
+          } else if (link.type === "contact") {
+            window.dispatchEvent(new Event("open-contact"));
+          }
+        }}
+        {...hoverProps}
+      >
         {link.label}
       </span>
     );
   };
 
-  const StatusDot = () => (
-    <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-      <div
-        style={{
-          position: "absolute",
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: "#FAFAFA",
-          animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
-          opacity: 0.6,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: "#FAFAFA",
-        }}
-      />
-    </div>
-  );
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 600,
-    color: "#FAFAFA",
-    letterSpacing: "0.01em",
-    whiteSpace: "nowrap",
-  };
-
-  // On any page other than home, the left label becomes a home button.
-  const isHome = pathname === "/";
-
-  const brandLabel = isHome ? (
-    <span style={labelStyle}>(UX + Motion Designer)</span>
-  ) : (
-    <span
-      onClick={() => {
-        setMenuOpen(false);
-        goHome();
-      }}
-      onMouseEnter={() => setBrandHover(true)}
-      onMouseLeave={() => setBrandHover(false)}
-      style={{
-        ...labelStyle,
-        cursor: "pointer",
-        color: brandHover ? "#CDFE88" : "#FAFAFA",
-        transition: "color 0.2s ease",
-      }}
-    >
-      brandonwong.design
-    </span>
-  );
-
-  const keyframes = `
-    @keyframes ping { 0% { transform: scale(1); opacity: 0.6; } 75%, 100% { transform: scale(2.5); opacity: 0; } }
-    @keyframes menuFadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes menuItemIn {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  `;
-
-  // ---------- MOBILE ----------
-  if (mounted && isMobile) {
-    return (
-      <>
-        <div
-          style={{
-            width: "100%",
-            position: "fixed",
-            top: 0,
-            left: 0,
-            zIndex: 160,
-            background: scrolled && !menuOpen ? "#121212" : "transparent",
-            transition: "background 0.2s ease",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "20px clamp(20px, 4vw, 48px)",
-            boxSizing: "border-box",
-            fontFamily: "Manrope, sans-serif",
-          }}
-        >
-          {brandLabel}
-
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              margin: 0,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 44,
-              height: 24,
-              ...labelStyle,
-            }}
-          >
-            {menuOpen ? (
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="#FAFAFA"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              >
-                <line x1="1.5" y1="1.5" x2="10.5" y2="10.5" />
-                <line x1="10.5" y1="1.5" x2="1.5" y2="10.5" />
-              </svg>
-            ) : (
-              <span style={{ ...labelStyle, textAlign: "right", width: "100%" }}>
-                Menu
-              </span>
-            )}
-          </button>
-        </div>
-
-        {menuOpen && (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 150,
-              background: "#121212",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              padding: "88px clamp(20px, 4vw, 48px) 40px",
-              boxSizing: "border-box",
-              fontFamily: "Manrope, sans-serif",
-              overflowY: "auto",
-              animation: "menuFadeIn 0.25s ease",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {allLinks.map((link, i) => (
-                <span
-                  key={link.label}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    activateLink(link);
-                  }}
-                  style={{
-                    fontSize: "clamp(38px, 11vw, 68px)",
-                    fontWeight: 800,
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1.06,
-                    color:
-                      activeLabel === link.label ? "#707070" : "#FAFAFA",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    animation: `menuItemIn 0.5s cubic-bezier(0.16,1,0.3,1) ${
-                      0.04 + i * 0.05
-                    }s both`,
-                  }}
-                >
-                  {link.label}
-                </span>
-              ))}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginTop: 40,
-              }}
-            >
-              <StatusDot />
-              <span style={labelStyle}>SF Bay Area</span>
-            </div>
-          </div>
-        )}
-
-        <style>{keyframes}</style>
-        <ContactReceipt />
-      </>
-    );
-  }
-
-  // ---------- DESKTOP ----------
   return (
     <>
+      {/* faint frost backing layer — sits behind the blend-mode nav, very subtle */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: 92,
+          zIndex: 99,
+          pointerEvents: "none",
+          backdropFilter: "blur(3px)",
+          WebkitBackdropFilter: "blur(3px)",
+          background:
+            "linear-gradient(to bottom, rgba(18,18,18,0.28) 0%, rgba(18,18,18,0.10) 60%, rgba(18,18,18,0) 100%)",
+          maskImage: "linear-gradient(to bottom, #000 60%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, #000 60%, transparent 100%)",
+        }}
+      />
+
       <div
         style={{
           width: "100%",
@@ -392,8 +172,8 @@ export default function Nav() {
           top: 0,
           left: 0,
           zIndex: 100,
-          background: scrolled ? "#121212" : "transparent",
-          transition: "background 0.2s ease",
+          background: "transparent",
+          mixBlendMode: "difference",
           display: "grid",
           gridTemplateColumns: "2fr 1fr auto",
           alignItems: "center",
@@ -402,7 +182,17 @@ export default function Nav() {
           fontFamily: "Manrope, sans-serif",
         }}
       >
-        {brandLabel}
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#FAFAFA",
+            letterSpacing: "0.01em",
+            whiteSpace: "nowrap",
+          }}
+        >
+          (UX + Motion Designer)
+        </span>
 
         <div
           style={{
@@ -424,11 +214,42 @@ export default function Nav() {
             justifyContent: "flex-end",
           }}
         >
-          <span style={labelStyle}>SF Bay Area</span>
-          <StatusDot />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#FAFAFA",
+              whiteSpace: "nowrap",
+              letterSpacing: "0.01em",
+            }}
+          >
+            SF Bay Area
+          </span>
+          <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
+            <div
+              style={{
+                position: "absolute",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#FAFAFA",
+                animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
+                opacity: 0.6,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#FAFAFA",
+              }}
+            />
+          </div>
         </div>
 
-        <style>{keyframes}</style>
+        <style>{`@keyframes ping { 0% { transform: scale(1); opacity: 0.6; } 75%, 100% { transform: scale(2.5); opacity: 0; } }`}</style>
       </div>
 
       <ContactReceipt />

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-const YOUTUBE_URL = "https://www.youtube.com/watch?v=YOUR_VIDEO_ID";
+const MOBILE_BREAKPOINT = 900;
 
 type Project = {
   title: string;
@@ -13,6 +13,7 @@ type Project = {
   video: string;
   posterTime?: number;
   hoverStart?: number;
+  mobileFrame?: number;
 };
 
 const chipStyle: React.CSSProperties = {
@@ -62,15 +63,13 @@ function MetaRow({ title, tag, year }: { title: string; tag: string; year: strin
 function ProjectCard({
   project,
   index,
-  eager,
+  isMobile,
 }: {
   project: Project;
   index: number;
-  eager?: boolean;
+  isMobile: boolean;
 }) {
-  // eager cards (top row) start visible + loaded immediately
-  const [visible, setVisible] = useState(!!eager);
-  const [near, setNear] = useState(!!eager);
+  const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -79,10 +78,10 @@ function ProjectCard({
   const hasPoster = typeof posterTime === "number";
   const hoverStart =
     typeof project.hoverStart === "number" ? project.hoverStart : 0;
+  const mobileFrame =
+    typeof project.mobileFrame === "number" ? project.mobileFrame : 0;
 
-  // fade-in when card enters view (skipped if already eager)
   useEffect(() => {
-    if (eager) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -94,34 +93,19 @@ function ProjectCard({
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, [eager]);
-
-  // allow the video to load when near the viewport (skipped if already eager)
-  useEffect(() => {
-    if (eager) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setNear(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "600px" }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [eager]);
+  }, []);
 
   const handleEnter = () => {
+    if (isMobile) return;
     setHovered(true);
     const v = videoRef.current;
     if (!v) return;
-    v.preload = "auto";
     v.currentTime = hoverStart;
     v.play().catch(() => {});
   };
 
   const handleLeave = () => {
+    if (isMobile) return;
     setHovered(false);
     const v = videoRef.current;
     if (!v) return;
@@ -129,7 +113,10 @@ function ProjectCard({
     v.currentTime = hasPoster ? (posterTime as number) : 0;
   };
 
-  const src = hasPoster ? `${project.video}#t=${posterTime}` : project.video;
+  const desktopSrc = hasPoster
+    ? `${project.video}#t=${posterTime}`
+    : project.video;
+  const mobileSrc = `${project.video}#t=${mobileFrame}`;
 
   return (
     <div className="card-slot">
@@ -158,27 +145,23 @@ function ProjectCard({
               overflow: "hidden",
             }}
           >
-            {near ? (
-              <video
-                ref={videoRef}
-                src={src}
-                loop
-                muted
-                playsInline
-                preload={eager ? "auto" : "metadata"}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "50% 50%",
-                  display: "block",
-                  transform: hovered ? "scale(1.04)" : "scale(1)",
-                  transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
-                }}
-              />
-            ) : (
-              <div style={{ width: "100%", height: "100%", background: "#1e1e1e" }} />
-            )}
+            <video
+              ref={videoRef}
+              src={isMobile ? mobileSrc : desktopSrc}
+              loop={!isMobile}
+              muted
+              playsInline
+              preload="metadata"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "50% 50%",
+                display: "block",
+                transform: hovered ? "scale(1.04)" : "scale(1)",
+                transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
+              }}
+            />
           </div>
 
           <MetaRow title={project.title} tag={project.tag} year={project.year} />
@@ -190,7 +173,6 @@ function ProjectCard({
 
 function ShowreelCard({ index }: { index: number }) {
   const [visible, setVisible] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -217,12 +199,8 @@ function ShowreelCard({ index }: { index: number }) {
           transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
           display: "flex",
           flexDirection: "column",
-          cursor: "pointer",
           background: "#121212",
         }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => window.open(YOUTUBE_URL, "_blank")}
       >
         <div
           style={{
@@ -234,51 +212,61 @@ function ShowreelCard({ index }: { index: number }) {
             overflow: "hidden",
             position: "relative",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
+            gap: 16,
           }}
         >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#333",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            Showreel Thumbnail
-          </span>
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "rgba(0,0,0,0.4)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: hovered ? 1 : 0,
-              transition: "opacity 0.3s ease",
-            }}
-          >
-            <div
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
               style={{
-                width: 64,
-                height: 64,
+                width: 7,
+                height: 7,
                 borderRadius: "50%",
-                border: "1.5px solid #FAFAFA",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transform: hovered ? "scale(1)" : "scale(0.85)",
-                transition: "transform 0.4s cubic-bezier(0.16,1,0.3,1)",
+                background: "#CDFE88",
+                display: "inline-block",
+              }}
+            />
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#CDFE88",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#FAFAFA">
-                <polygon points="5,3 19,12 5,21" />
-              </svg>
-            </div>
+              Coming Soon
+            </span>
           </div>
+
+          <span
+            style={{
+              fontSize: "clamp(20px, 3vw, 34px)",
+              fontWeight: 800,
+              color: "#FAFAFA",
+              letterSpacing: "-0.03em",
+              lineHeight: 1.1,
+              textAlign: "center",
+            }}
+          >
+            Showreel in the works
+          </span>
+
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#757575",
+              letterSpacing: "0.01em",
+              textAlign: "center",
+              maxWidth: 380,
+              padding: "0 24px",
+            }}
+          >
+            A motion reel is currently in production. Check back soon.
+          </span>
         </div>
 
         <MetaRow title="Showreel" tag="Motion" year="2026" />
@@ -288,6 +276,16 @@ function ShowreelCard({ index }: { index: number }) {
 }
 
 export default function PortfolioSection() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const projects: Project[] = [
     {
       title: "Curve Biosciences",
@@ -296,6 +294,7 @@ export default function PortfolioSection() {
       href: "/curve",
       video: "/curve.mp4",
       posterTime: 6.5,
+      mobileFrame: 7.9,
     },
     {
       title: "HackDavis",
@@ -304,6 +303,7 @@ export default function PortfolioSection() {
       href: "/hackdavis",
       video: "/hackdavis.mp4",
       hoverStart: 0.7,
+      mobileFrame: 0.7,
     },
     {
       title: "Treevah",
@@ -311,6 +311,7 @@ export default function PortfolioSection() {
       year: "2025",
       href: "/treevah",
       video: "/treevah.mp4",
+      mobileFrame: 1,
     },
     {
       title: "San Jose City College",
@@ -319,6 +320,7 @@ export default function PortfolioSection() {
       href: "/sjcc",
       video: "/sjcc.mp4",
       posterTime: 0.9,
+      mobileFrame: 1,
     },
   ];
 
@@ -367,7 +369,7 @@ export default function PortfolioSection() {
       `}</style>
 
       {projects.map((p, i) => (
-        <ProjectCard key={p.title} project={p} index={i} eager={i < 2} />
+        <ProjectCard key={p.title} project={p} index={i} isMobile={isMobile} />
       ))}
       <ShowreelCard index={5} />
     </div>
