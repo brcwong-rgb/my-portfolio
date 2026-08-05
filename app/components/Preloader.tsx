@@ -8,23 +8,47 @@ export default function Preloader() {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    let current = 0;
-    const interval = setInterval(() => {
-      current += 4;
-      if (current >= 100) {
-        current = 100;
+    const start = Date.now();
+    const MIN_DURATION = 900;
+    let pageReady = document.readyState === "complete";
+
+    const markReady = () => {
+      pageReady = true;
+    };
+    if (!pageReady) window.addEventListener("load", markReady);
+
+    let raf = 0;
+    let finished = false;
+
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const timeRatio = Math.min(elapsed / MIN_DURATION, 1);
+      const ceiling = pageReady ? 1 : 0.85;
+      const target = Math.min(timeRatio, ceiling) * 100;
+
+      setProgress((p) => (target > p ? Math.min(target, 100) : p));
+
+      if (pageReady && timeRatio >= 1 && !finished) {
+        finished = true;
         setProgress(100);
-        clearInterval(interval);
-        setTimeout(() => setDone(true), 250);
-        setTimeout(() => setHidden(true), 1050);
-      } else {
-        setProgress(current);
+        // let the bar + counter visibly land on 100 first, THEN wipe away
+        window.setTimeout(() => setDone(true), 400);
+        window.setTimeout(() => setHidden(true), 400 + 800);
+        return;
       }
-    }, 26);
-    return () => clearInterval(interval);
+      if (!finished) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("load", markReady);
+    };
   }, []);
 
   if (hidden) return null;
+
+  const pct = Math.round(progress);
 
   return (
     <div
@@ -33,32 +57,30 @@ export default function Preloader() {
         inset: 0,
         zIndex: 9999,
         background: "#121212",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        padding: "48px",
-        boxSizing: "border-box",
         transform: done ? "translateY(-100%)" : "translateY(0)",
         transition: "transform 0.8s cubic-bezier(0.76,0,0.24,1)",
+        pointerEvents: done ? "none" : "auto",
       }}
     >
-      {/* label bottom-left */}
-      <span
+      {/* thin green load bar pinned at the very top */}
+      <div
         style={{
-          fontFamily: "'Work Sans', sans-serif",
-          fontSize: 12,
-          fontWeight: 600,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: "#757575",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          height: 3,
+          width: `${pct}%`,
+          background: "#CDFE88",
+          transition: "width 0.25s ease",
         }}
-      >
-        Brandon Wong — Portfolio
-      </span>
+      />
 
       {/* big counter bottom-right */}
-      <span
+      <div
         style={{
+          position: "absolute",
+          bottom: 48,
+          right: 48,
           fontFamily: "Manrope, sans-serif",
           fontSize: "clamp(80px, 18vw, 240px)",
           fontWeight: 800,
@@ -67,9 +89,9 @@ export default function Preloader() {
           lineHeight: 0.8,
         }}
       >
-        {progress}
+        {pct}
         <span style={{ color: "#CDFE88" }}>%</span>
-      </span>
+      </div>
     </div>
   );
 }
