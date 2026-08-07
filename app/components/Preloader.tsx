@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const MIN_DURATION = 900;   // minimum time the loader shows
-const MAX_DURATION = 4000;  // FAIL-SAFE: force finish after this no matter what
+const MIN_DURATION = 700;   // minimum time the loader shows
+const MAX_DURATION = 2500;  // FAIL-SAFE: force ready after this no matter what
+const HARD_STOP = 3500;     // absolute stop: force the whole thing gone
 
 export default function Preloader() {
   const [pct, setPct] = useState(0);
@@ -21,27 +22,29 @@ export default function Preloader() {
       pageReadyRef.current = true;
     };
 
-    // if the page is already loaded, mark immediately
-    if (document.readyState === "complete") {
+    // Ready as soon as the DOM is parsed — do NOT wait on window "load",
+    // because that waits on videos/images that corporate proxies (Zscaler)
+    // may block, which would hang the loader forever.
+    if (
+      document.readyState === "interactive" ||
+      document.readyState === "complete"
+    ) {
       markReady();
     } else {
-      window.addEventListener("load", markReady);
+      document.addEventListener("DOMContentLoaded", markReady);
     }
 
-    // FAIL-SAFE: no matter what, treat the page as ready after MAX_DURATION
-    const failSafe = setTimeout(() => {
-      pageReadyRef.current = true;
-    }, MAX_DURATION);
+    // FAIL-SAFE: treat as ready after MAX_DURATION regardless of anything
+    const failSafe = setTimeout(markReady, MAX_DURATION);
 
     const finish = () => {
       if (finishedRef.current) return;
       finishedRef.current = true;
       setPct(100);
-      // small pause so the bar/counter visibly land on 100, then wipe up
       setTimeout(() => {
         setFinished(true);
         setTimeout(() => setHidden(true), 800);
-      }, 400);
+      }, 350);
     };
 
     const tick = () => {
@@ -50,18 +53,15 @@ export default function Preloader() {
       const minMet = elapsed >= MIN_DURATION;
 
       setPct((prev) => {
-        // climb toward a ceiling; only allow 100 once ready + min time met
-        const ceiling = ready && minMet ? 100 : 85;
+        const ceiling = ready && minMet ? 100 : 90;
         if (prev >= ceiling) return prev;
-        // ease as it climbs
-        const step = Math.max(0.5, (ceiling - prev) * 0.06);
+        const step = Math.max(0.8, (ceiling - prev) * 0.08);
         return Math.min(ceiling, prev + step);
       });
 
-      if (pageReadyRef.current && minMet) {
-        // close enough to 100 → finish
+      if (ready && minMet) {
         setPct((prev) => {
-          if (prev >= 99.5 && !finishedRef.current) {
+          if (prev >= 99 && !finishedRef.current) {
             finish();
           }
           return prev;
@@ -75,13 +75,11 @@ export default function Preloader() {
 
     rafRef.current = requestAnimationFrame(tick);
 
-    // absolute hard stop: force the whole thing gone after MAX + buffer
-    const hardStop = setTimeout(() => {
-      finish();
-    }, MAX_DURATION + 1200);
+    // absolute backstop — force everything gone no matter what state
+    const hardStop = setTimeout(finish, HARD_STOP);
 
     return () => {
-      window.removeEventListener("load", markReady);
+      document.removeEventListener("DOMContentLoaded", markReady);
       clearTimeout(failSafe);
       clearTimeout(hardStop);
       cancelAnimationFrame(rafRef.current);
@@ -104,7 +102,6 @@ export default function Preloader() {
         pointerEvents: finished ? "none" : "auto",
       }}
     >
-      {/* thin load bar pinned at top */}
       <div
         style={{
           position: "absolute",
@@ -117,7 +114,6 @@ export default function Preloader() {
         }}
       />
 
-      {/* big % counter bottom-right */}
       <div
         style={{
           position: "absolute",
