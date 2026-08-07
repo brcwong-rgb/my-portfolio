@@ -14,6 +14,8 @@ type Project = {
   posterTime?: number;
   hoverStart?: number;
   mobileFrame?: number;
+  blurb?: string;    // short one-line description (mobile)
+  readTime?: string; // e.g. "4 min read" (mobile)
 };
 
 const chipStyle: React.CSSProperties = {
@@ -31,8 +33,25 @@ const chipStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-function MetaRow({ title, tag, year }: { title: string; tag: string; year: string }) {
+const chipStyleOnCard: React.CSSProperties = {
+  ...chipStyle,
+  background: "#242424",
+  border: "0.5px solid #333",
+};
+
+function MetaRow({
+  title,
+  tag,
+  year,
+  onCard,
+}: {
+  title: string;
+  tag: string;
+  year: string;
+  onCard?: boolean;
+}) {
   const parts = tag.split("·").map((p) => p.trim()).filter(Boolean);
+  const chip = onCard ? chipStyleOnCard : chipStyle;
   return (
     <div className="card-meta">
       <span
@@ -49,12 +68,12 @@ function MetaRow({ title, tag, year }: { title: string; tag: string; year: strin
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         {parts.map((part) => (
-          <span key={part} style={chipStyle}>
+          <span key={part} style={chip}>
             {part}
           </span>
         ))}
         <span style={{ width: 1, height: 18, background: "#404040", flexShrink: 0 }} />
-        <span style={chipStyle}>{year}</span>
+        <span style={chip}>{year}</span>
       </div>
     </div>
   );
@@ -71,6 +90,7 @@ function ProjectCard({
 }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [tilt, setTilt] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -95,6 +115,29 @@ function ProjectCard({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!isMobile) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = ref.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const vh = window.innerHeight || 1;
+        const progress = (rect.top + rect.height / 2 - vh / 2) / (vh / 2);
+        const clamped = Math.max(-1, Math.min(1, progress));
+        setTilt(clamped * 6);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [isMobile]);
+
   const handleEnter = () => {
     if (isMobile) return;
     setHovered(true);
@@ -118,8 +161,23 @@ function ProjectCard({
     : project.video;
   const mobileSrc = `${project.video}#t=${mobileFrame}`;
 
+  const cardStyle: React.CSSProperties = isMobile
+    ? {
+        background: "#1e1e1e",
+        border: "0.5px solid #2a2a2a",
+        borderRadius: 16,
+        overflow: "hidden",
+      }
+    : {};
+
+  const entranceTransform = visible ? "translateY(0px)" : "translateY(50px)";
+  const mobileTiltTransform = `perspective(1200px) rotateX(${tilt}deg)`;
+
   return (
-    <div className="card-slot">
+    <div
+      className="card-slot"
+      style={isMobile ? { perspective: 1200 } : undefined}
+    >
       <Link href={project.href} style={{ textDecoration: "none" }}>
         <div
           ref={ref}
@@ -127,12 +185,18 @@ function ProjectCard({
           onMouseLeave={handleLeave}
           style={{
             opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0px)" : "translateY(50px)",
-            transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
+            transform: isMobile
+              ? `${mobileTiltTransform} ${entranceTransform}`
+              : entranceTransform,
+            transformOrigin: "center center",
+            transition: isMobile
+              ? `opacity 0.8s ease ${index * 0.15}s, transform 0.2s ease-out`
+              : `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
             display: "flex",
             flexDirection: "column",
             cursor: "pointer",
-            background: "#121212",
+            willChange: isMobile ? "transform" : undefined,
+            ...cardStyle,
           }}
         >
           <div
@@ -140,8 +204,9 @@ function ProjectCard({
               width: "100%",
               aspectRatio: "16/10",
               background: "#1e1e1e",
-              borderRadius: 4,
-              border: "0.5px solid #2a2a2a",
+              borderRadius: isMobile ? 0 : 4,
+              border: isMobile ? "none" : "0.5px solid #2a2a2a",
+              borderBottom: isMobile ? "0.5px solid #2a2a2a" : undefined,
               overflow: "hidden",
             }}
           >
@@ -158,20 +223,78 @@ function ProjectCard({
                 objectFit: "cover",
                 objectPosition: "50% 50%",
                 display: "block",
-                transform: hovered ? "scale(1.04)" : "scale(1)",
+                transform: !isMobile && hovered ? "scale(1.04)" : "scale(1)",
                 transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
               }}
             />
           </div>
 
-          <MetaRow title={project.title} tag={project.tag} year={project.year} />
+          <div style={isMobile ? { padding: "0 14px 14px 14px" } : undefined}>
+            <MetaRow
+              title={project.title}
+              tag={project.tag}
+              year={project.year}
+              onCard={isMobile}
+            />
+
+            {/* mobile-only: short blurb + read time */}
+            {isMobile && (project.blurb || project.readTime) && (
+              <div style={{ paddingTop: 2 }}>
+                {project.blurb && (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      lineHeight: 1.45,
+                      fontWeight: 500,
+                      color: "#8A8A8A",
+                      letterSpacing: "0.005em",
+                    }}
+                  >
+                    {project.blurb}
+                  </p>
+                )}
+                {project.readTime && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 10,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: "50%",
+                        background: "#CDFE88",
+                        display: "inline-block",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#707070",
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {project.readTime}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </Link>
     </div>
   );
 }
 
-function ShowreelCard({ index }: { index: number }) {
+function ShowreelCard({ index, isMobile }: { index: number; isMobile: boolean }) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -189,6 +312,15 @@ function ShowreelCard({ index }: { index: number }) {
     return () => observer.disconnect();
   }, []);
 
+  const cardStyle: React.CSSProperties = isMobile
+    ? {
+        background: "#1e1e1e",
+        border: "0.5px solid #2a2a2a",
+        borderRadius: 16,
+        overflow: "hidden",
+      }
+    : {};
+
   return (
     <div className="card-slot showreel-slot">
       <div
@@ -199,7 +331,7 @@ function ShowreelCard({ index }: { index: number }) {
           transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
           display: "flex",
           flexDirection: "column",
-          background: "#121212",
+          ...cardStyle,
         }}
       >
         <div
@@ -207,8 +339,9 @@ function ShowreelCard({ index }: { index: number }) {
             width: "100%",
             aspectRatio: "21/9",
             background: "#1e1e1e",
-            borderRadius: 4,
-            border: "0.5px solid #2a2a2a",
+            borderRadius: isMobile ? 0 : 4,
+            border: isMobile ? "none" : "0.5px solid #2a2a2a",
+            borderBottom: isMobile ? "0.5px solid #2a2a2a" : undefined,
             overflow: "hidden",
             position: "relative",
             display: "flex",
@@ -269,7 +402,9 @@ function ShowreelCard({ index }: { index: number }) {
           </span>
         </div>
 
-        <MetaRow title="Showreel" tag="Motion" year="2026" />
+        <div style={isMobile ? { padding: "0 14px 14px 14px" } : undefined}>
+          <MetaRow title="Showreel" tag="Motion" year="2026" onCard={isMobile} />
+        </div>
       </div>
     </div>
   );
@@ -295,6 +430,8 @@ export default function PortfolioSection() {
       video: "/curve.mp4",
       posterTime: 6.5,
       mobileFrame: 7.9,
+      blurb: "Translating complex life-science research into clear experiences for patients, providers, and labs.",
+      readTime: "4 min read",
     },
     {
       title: "HackDavis",
@@ -304,6 +441,8 @@ export default function PortfolioSection() {
       video: "/hackdavis.mp4",
       hoverStart: 0.7,
       mobileFrame: 0.7,
+      blurb: "A judging app built for speed, tested live with judges scoring 100+ projects in a day.",
+      readTime: "5 min read",
     },
     {
       title: "Treevah",
@@ -312,6 +451,8 @@ export default function PortfolioSection() {
       href: "/treevah",
       video: "/treevah.mp4",
       mobileFrame: 1,
+      blurb: "Bringing trust and structure to AI-assisted file management.",
+      readTime: "4 min read",
     },
     {
       title: "San Jose City College",
@@ -321,6 +462,8 @@ export default function PortfolioSection() {
       video: "/sjcc.mp4",
       posterTime: 0.9,
       mobileFrame: 1,
+      blurb: "A promotional video for the Basic Needs department, from concept to final cut.",
+      readTime: "2 min watch",
     },
   ];
 
@@ -352,15 +495,11 @@ export default function PortfolioSection() {
         @media (max-width: 900px) {
           .projects-grid {
             grid-template-columns: 1fr;
-            row-gap: 0;
+            row-gap: 28px;
             padding: 40px 20px 80px;
           }
-          .card-slot {
-            position: sticky;
-            top: 80px;
-            padding-bottom: 56px;
-          }
-          .card-meta { padding-top: 16px; gap: 12px; }
+          .card-slot { position: static; }
+          .card-meta { padding: 16px 0 12px 0; gap: 12px; }
           .card-meta > span:first-child { font-size: 24px; }
         }
         @media (max-width: 520px) {
@@ -371,7 +510,7 @@ export default function PortfolioSection() {
       {projects.map((p, i) => (
         <ProjectCard key={p.title} project={p} index={i} isMobile={isMobile} />
       ))}
-      <ShowreelCard index={5} />
+      <ShowreelCard index={5} isMobile={isMobile} />
     </div>
   );
 }

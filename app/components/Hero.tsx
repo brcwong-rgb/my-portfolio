@@ -7,7 +7,6 @@ const MOBILE_BREAKPOINT = 768;
 const NAV_CLEARANCE = 54;
 const MOBILE_TOP_TRIM = 0.42;
 const TAGLINE_GAP = 8;
-const FIRST_LINE_INDENT = "1.7em";
 const TAGLINE_MIN = 22;
 const TAGLINE_MAX = 80;
 const TAGLINE_SCALE = 0.7;
@@ -188,23 +187,23 @@ export default function Hero({
   const highlightSet = new Set(highlights);
   let hlIndex = 0;
 
-  const cta = (
+  // DESKTOP CTA — text + retracting underline + down arrow (unchanged)
+  const desktopCta = (
     <button
       onClick={scrollToProjects}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        float: isMobile ? "none" : "left",
+        float: "left",
         display: "inline-flex",
         alignItems: "center",
         gap: "0.15em",
         background: "none",
         border: "none",
         cursor: "pointer",
-        padding: isMobile ? "2px 0 8px 0" : 0,
-        marginRight: isMobile ? 0 : "6vw",
-        marginTop: isMobile ? 0 : "0.28em",
-        marginBottom: isMobile ? "0.5em" : 0,
+        padding: 0,
+        marginRight: "6vw",
+        marginTop: "0.28em",
         fontSize: "0.42em",
         WebkitTapHighlightColor: "transparent",
       }}
@@ -256,6 +255,58 @@ export default function Hero({
         <line x1="12" y1="5" x2="12" y2="19" />
         <polyline points="19 12 12 19 5 12" />
       </svg>
+    </button>
+  );
+
+  // MOBILE CTA — bold solid green pill with down arrow
+  const mobileCta = (
+    <button
+      onClick={scrollToProjects}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        background: "#CDFE88",
+        border: "none",
+        borderRadius: 999,
+        cursor: "pointer",
+        padding: "14px 24px",
+        marginBottom: 44,
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          letterSpacing: "-0.01em",
+          color: "#121212",
+        }}
+      >
+        {ctaText}
+      </span>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#121212"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          width: 16,
+          height: 16,
+          animation: "heroPillBob 1.6s ease-in-out infinite",
+        }}
+      >
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <polyline points="19 12 12 19 5 12" />
+      </svg>
+      <style>{`
+        @keyframes heroPillBob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(3px); }
+        }
+      `}</style>
     </button>
   );
 
@@ -317,13 +368,11 @@ export default function Hero({
           width: "100%",
           boxSizing: "border-box",
           padding: isMobile
-            ? `${TAGLINE_GAP}px 0 32px 0`
+            ? `${TAGLINE_GAP}px 0 28px 0`
             : "16px 0 24px 0",
           fontSize: isMobile ? taglineSize : "clamp(28px, 4.6vw, 80px)",
         }}
       >
-        {isMobile && cta}
-
         <p
           ref={taglineRef}
           style={{
@@ -332,14 +381,13 @@ export default function Hero({
             color: "#FAFAFA",
             letterSpacing: "-0.03em",
             lineHeight: isMobile ? 1.1 : 1.02,
-            textIndent: isMobile ? FIRST_LINE_INDENT : 0,
             textAlign: "left",
             margin: 0,
             padding: 0,
             width: "100%",
           }}
         >
-          {!isMobile && cta}
+          {!isMobile && desktopCta}
 
           {parts.map((part, i) => {
             if (!highlightSet.has(part)) return <span key={i}>{part}</span>;
@@ -375,6 +423,9 @@ export default function Hero({
           })}
         </p>
       </div>
+
+      {/* mobile: bold green pill, compact, left-aligned below the tagline */}
+      {isMobile && mobileCta}
     </div>
   );
 }
