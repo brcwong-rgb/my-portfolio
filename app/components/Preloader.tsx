@@ -1,54 +1,96 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const MIN_DURATION = 900;   // minimum time the loader shows
+const MAX_DURATION = 4000;  // FAIL-SAFE: force finish after this no matter what
 
 export default function Preloader() {
-  const [progress, setProgress] = useState(0);
-  const [done, setDone] = useState(false);
+  const [pct, setPct] = useState(0);
+  const [finished, setFinished] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const startRef = useRef<number>(Date.now());
+  const pageReadyRef = useRef(false);
+  const finishedRef = useRef(false);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    const start = Date.now();
-    const MIN_DURATION = 900;
-    let pageReady = document.readyState === "complete";
+    startRef.current = Date.now();
 
     const markReady = () => {
-      pageReady = true;
+      pageReadyRef.current = true;
     };
-    if (!pageReady) window.addEventListener("load", markReady);
 
-    let raf = 0;
-    let finished = false;
+    // if the page is already loaded, mark immediately
+    if (document.readyState === "complete") {
+      markReady();
+    } else {
+      window.addEventListener("load", markReady);
+    }
+
+    // FAIL-SAFE: no matter what, treat the page as ready after MAX_DURATION
+    const failSafe = setTimeout(() => {
+      pageReadyRef.current = true;
+    }, MAX_DURATION);
+
+    const finish = () => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      setPct(100);
+      // small pause so the bar/counter visibly land on 100, then wipe up
+      setTimeout(() => {
+        setFinished(true);
+        setTimeout(() => setHidden(true), 800);
+      }, 400);
+    };
 
     const tick = () => {
-      const elapsed = Date.now() - start;
-      const timeRatio = Math.min(elapsed / MIN_DURATION, 1);
-      const ceiling = pageReady ? 1 : 0.85;
-      const target = Math.min(timeRatio, ceiling) * 100;
+      const elapsed = Date.now() - startRef.current;
+      const ready = pageReadyRef.current;
+      const minMet = elapsed >= MIN_DURATION;
 
-      setProgress((p) => (target > p ? Math.min(target, 100) : p));
+      setPct((prev) => {
+        // climb toward a ceiling; only allow 100 once ready + min time met
+        const ceiling = ready && minMet ? 100 : 85;
+        if (prev >= ceiling) return prev;
+        // ease as it climbs
+        const step = Math.max(0.5, (ceiling - prev) * 0.06);
+        return Math.min(ceiling, prev + step);
+      });
 
-      if (pageReady && timeRatio >= 1 && !finished) {
-        finished = true;
-        setProgress(100);
-        // let the bar + counter visibly land on 100 first, THEN wipe away
-        window.setTimeout(() => setDone(true), 400);
-        window.setTimeout(() => setHidden(true), 400 + 800);
-        return;
+      if (pageReadyRef.current && minMet) {
+        // close enough to 100 → finish
+        setPct((prev) => {
+          if (prev >= 99.5 && !finishedRef.current) {
+            finish();
+          }
+          return prev;
+        });
       }
-      if (!finished) raf = requestAnimationFrame(tick);
+
+      if (!finishedRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
     };
-    raf = requestAnimationFrame(tick);
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    // absolute hard stop: force the whole thing gone after MAX + buffer
+    const hardStop = setTimeout(() => {
+      finish();
+    }, MAX_DURATION + 1200);
 
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("load", markReady);
+      clearTimeout(failSafe);
+      clearTimeout(hardStop);
+      cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
   if (hidden) return null;
 
-  const pct = Math.round(progress);
+  const shown = Math.round(pct);
 
   return (
     <div
@@ -57,39 +99,39 @@ export default function Preloader() {
         inset: 0,
         zIndex: 9999,
         background: "#121212",
-        transform: done ? "translateY(-100%)" : "translateY(0)",
+        transform: finished ? "translateY(-100%)" : "translateY(0)",
         transition: "transform 0.8s cubic-bezier(0.76,0,0.24,1)",
-        pointerEvents: done ? "none" : "auto",
+        pointerEvents: finished ? "none" : "auto",
       }}
     >
-      {/* thin green load bar pinned at the very top */}
+      {/* thin load bar pinned at top */}
       <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           height: 3,
-          width: `${pct}%`,
+          width: `${shown}%`,
           background: "#CDFE88",
-          transition: "width 0.25s ease",
+          transition: "width 0.2s ease-out",
         }}
       />
 
-      {/* big counter bottom-right */}
+      {/* big % counter bottom-right */}
       <div
         style={{
           position: "absolute",
-          bottom: 48,
-          right: 48,
+          right: "clamp(20px, 5vw, 64px)",
+          bottom: "clamp(20px, 5vw, 48px)",
           fontFamily: "Manrope, sans-serif",
-          fontSize: "clamp(80px, 18vw, 240px)",
           fontWeight: 800,
           letterSpacing: "-0.04em",
+          lineHeight: 1,
+          fontSize: "clamp(80px, 18vw, 240px)",
           color: "#FAFAFA",
-          lineHeight: 0.8,
         }}
       >
-        {pct}
+        {shown}
         <span style={{ color: "#CDFE88" }}>%</span>
       </div>
     </div>
