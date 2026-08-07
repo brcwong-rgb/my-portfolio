@@ -164,10 +164,34 @@ export default function Nav() {
     );
   };
 
+  // shared frost backing layer
+  const frostLayer = (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: 92,
+        zIndex: 99,
+        pointerEvents: "none",
+        backdropFilter: "blur(3px)",
+        WebkitBackdropFilter: "blur(3px)",
+        background:
+          "linear-gradient(to bottom, rgba(18,18,18,0.28) 0%, rgba(18,18,18,0.10) 60%, rgba(18,18,18,0) 100%)",
+        maskImage: "linear-gradient(to bottom, #000 60%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to bottom, #000 60%, transparent 100%)",
+      }}
+    />
+  );
+
   // ---------- MOBILE / TABLET ----------
   if (isMobile) {
     return (
       <>
+        {/* frost sits behind the bar, only when the menu is closed */}
+        {!menuOpen && frostLayer}
+
         <div
           style={{
             width: "100%",
@@ -221,7 +245,7 @@ export default function Nav() {
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 99,
+            zIndex: 98,
             background: "#121212",
             display: "flex",
             flexDirection: "column",
@@ -295,23 +319,7 @@ export default function Nav() {
   // ---------- DESKTOP ----------
   return (
     <>
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: 92,
-          zIndex: 99,
-          pointerEvents: "none",
-          backdropFilter: "blur(3px)",
-          WebkitBackdropFilter: "blur(3px)",
-          background:
-            "linear-gradient(to bottom, rgba(18,18,18,0.28) 0%, rgba(18,18,18,0.10) 60%, rgba(18,18,18,0) 100%)",
-          maskImage: "linear-gradient(to bottom, #000 60%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, #000 60%, transparent 100%)",
-        }}
-      />
+      {frostLayer}
 
       <div
         style={{

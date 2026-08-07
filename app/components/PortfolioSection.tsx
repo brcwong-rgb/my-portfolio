@@ -14,15 +14,15 @@ type Project = {
   posterTime?: number;
   hoverStart?: number;
   mobileFrame?: number;
-  blurb?: string;    // short one-line description (mobile)
-  readTime?: string; // e.g. "4 min read" (mobile)
+  blurb?: string;
+  readTime?: string;
 };
 
-const chipStyle: React.CSSProperties = {
+const chipStyleOnCard: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  background: "#1e1e1e",
-  border: "0.5px solid #2a2a2a",
+  background: "#242424",
+  border: "0.5px solid #333",
   borderRadius: 999,
   padding: "6px 14px",
   fontSize: 11,
@@ -33,25 +33,8 @@ const chipStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-const chipStyleOnCard: React.CSSProperties = {
-  ...chipStyle,
-  background: "#242424",
-  border: "0.5px solid #333",
-};
-
-function MetaRow({
-  title,
-  tag,
-  year,
-  onCard,
-}: {
-  title: string;
-  tag: string;
-  year: string;
-  onCard?: boolean;
-}) {
+function MetaRow({ title, tag, year }: { title: string; tag: string; year: string }) {
   const parts = tag.split("·").map((p) => p.trim()).filter(Boolean);
-  const chip = onCard ? chipStyleOnCard : chipStyle;
   return (
     <div className="card-meta">
       <span
@@ -68,12 +51,12 @@ function MetaRow({
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         {parts.map((part) => (
-          <span key={part} style={chip}>
+          <span key={part} style={chipStyleOnCard}>
             {part}
           </span>
         ))}
         <span style={{ width: 1, height: 18, background: "#404040", flexShrink: 0 }} />
-        <span style={chip}>{year}</span>
+        <span style={chipStyleOnCard}>{year}</span>
       </div>
     </div>
   );
@@ -161,14 +144,13 @@ function ProjectCard({
     : project.video;
   const mobileSrc = `${project.video}#t=${mobileFrame}`;
 
-  const cardStyle: React.CSSProperties = isMobile
-    ? {
-        background: "#1e1e1e",
-        border: "0.5px solid #2a2a2a",
-        borderRadius: 16,
-        overflow: "hidden",
-      }
-    : {};
+  // off-black card on both desktop and mobile now
+  const cardStyle: React.CSSProperties = {
+    background: "#1e1e1e",
+    border: "0.5px solid #2a2a2a",
+    borderRadius: 16,
+    overflow: "hidden",
+  };
 
   const entranceTransform = visible ? "translateY(0px)" : "translateY(50px)";
   const mobileTiltTransform = `perspective(1200px) rotateX(${tilt}deg)`;
@@ -204,9 +186,7 @@ function ProjectCard({
               width: "100%",
               aspectRatio: "16/10",
               background: "#1e1e1e",
-              borderRadius: isMobile ? 0 : 4,
-              border: isMobile ? "none" : "0.5px solid #2a2a2a",
-              borderBottom: isMobile ? "0.5px solid #2a2a2a" : undefined,
+              borderBottom: "0.5px solid #2a2a2a",
               overflow: "hidden",
             }}
           >
@@ -229,16 +209,10 @@ function ProjectCard({
             />
           </div>
 
-          <div style={isMobile ? { padding: "0 14px 14px 14px" } : undefined}>
-            <MetaRow
-              title={project.title}
-              tag={project.tag}
-              year={project.year}
-              onCard={isMobile}
-            />
+          <div style={{ padding: "0 18px 18px 18px" }}>
+            <MetaRow title={project.title} tag={project.tag} year={project.year} />
 
-            {/* mobile-only: short blurb + read time */}
-            {isMobile && (project.blurb || project.readTime) && (
+            {(project.blurb || project.readTime) && (
               <div style={{ paddingTop: 2 }}>
                 {project.blurb && (
                   <p
@@ -294,7 +268,7 @@ function ProjectCard({
   );
 }
 
-function ShowreelCard({ index, isMobile }: { index: number; isMobile: boolean }) {
+function ShowreelCard({ index }: { index: number }) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -312,15 +286,6 @@ function ShowreelCard({ index, isMobile }: { index: number; isMobile: boolean })
     return () => observer.disconnect();
   }, []);
 
-  const cardStyle: React.CSSProperties = isMobile
-    ? {
-        background: "#1e1e1e",
-        border: "0.5px solid #2a2a2a",
-        borderRadius: 16,
-        overflow: "hidden",
-      }
-    : {};
-
   return (
     <div className="card-slot showreel-slot">
       <div
@@ -331,7 +296,10 @@ function ShowreelCard({ index, isMobile }: { index: number; isMobile: boolean })
           transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
           display: "flex",
           flexDirection: "column",
-          ...cardStyle,
+          background: "#1e1e1e",
+          border: "0.5px solid #2a2a2a",
+          borderRadius: 16,
+          overflow: "hidden",
         }}
       >
         <div
@@ -339,9 +307,7 @@ function ShowreelCard({ index, isMobile }: { index: number; isMobile: boolean })
             width: "100%",
             aspectRatio: "21/9",
             background: "#1e1e1e",
-            borderRadius: isMobile ? 0 : 4,
-            border: isMobile ? "none" : "0.5px solid #2a2a2a",
-            borderBottom: isMobile ? "0.5px solid #2a2a2a" : undefined,
+            borderBottom: "0.5px solid #2a2a2a",
             overflow: "hidden",
             position: "relative",
             display: "flex",
@@ -402,8 +368,8 @@ function ShowreelCard({ index, isMobile }: { index: number; isMobile: boolean })
           </span>
         </div>
 
-        <div style={isMobile ? { padding: "0 14px 14px 14px" } : undefined}>
-          <MetaRow title="Showreel" tag="Motion" year="2026" onCard={isMobile} />
+        <div style={{ padding: "0 18px 18px 18px" }}>
+          <MetaRow title="Showreel" tag="Motion" year="2026" />
         </div>
       </div>
     </div>
@@ -478,7 +444,7 @@ export default function PortfolioSection() {
           display: grid;
           grid-template-columns: 1fr 1fr;
           column-gap: 32px;
-          row-gap: 104px;
+          row-gap: 48px;
           padding: 48px 48px 120px;
         }
         .showreel-slot { grid-column: 1 / -1; }
@@ -487,10 +453,10 @@ export default function PortfolioSection() {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
-          padding: 24px 4px 0 4px;
+          padding: 20px 0 12px 0;
         }
         @media (max-width: 1100px) {
-          .projects-grid { row-gap: 80px; }
+          .projects-grid { row-gap: 40px; }
         }
         @media (max-width: 900px) {
           .projects-grid {
@@ -510,7 +476,7 @@ export default function PortfolioSection() {
       {projects.map((p, i) => (
         <ProjectCard key={p.title} project={p} index={i} isMobile={isMobile} />
       ))}
-      <ShowreelCard index={5} isMobile={isMobile} />
+      <ShowreelCard index={5} />
     </div>
   );
 }
