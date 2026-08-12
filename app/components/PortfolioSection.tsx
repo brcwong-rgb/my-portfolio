@@ -66,15 +66,21 @@ function ProjectCard({
   project,
   index,
   isMobile,
+  onCardEnter,
+  onCardLeave,
+  onCardMove,
 }: {
   project: Project;
   index: number;
   isMobile: boolean;
+  onCardEnter: () => void;
+  onCardLeave: () => void;
+  onCardMove: (e: React.MouseEvent) => void;
 }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [tilt, setTilt] = useState(0); // mobile scroll tilt (rotateX)
-  const [mouseTilt, setMouseTilt] = useState({ x: 0, y: 0 }); // desktop mouse tilt
+  const [tilt, setTilt] = useState(0);
+  const [mouseTilt, setMouseTilt] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -99,7 +105,6 @@ function ProjectCard({
     return () => observer.disconnect();
   }, []);
 
-  // mobile: scroll-based 3D tilt
   useEffect(() => {
     if (!isMobile) return;
     let raf = 0;
@@ -123,16 +128,15 @@ function ProjectCard({
     };
   }, [isMobile]);
 
-  // desktop: subtle mouse-position tilt
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    onCardMove(e);
     if (isMobile) return;
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width; // 0..1
-    const py = (e.clientY - rect.top) / rect.height; // 0..1
-    const MAX = 5; // degrees — subtle
-    // rotateY follows horizontal, rotateX follows vertical (inverted)
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const MAX = 5;
     setMouseTilt({
       x: (0.5 - py) * MAX * 2,
       y: (px - 0.5) * MAX * 2,
@@ -142,6 +146,7 @@ function ProjectCard({
   const handleEnter = () => {
     if (isMobile) return;
     setHovered(true);
+    onCardEnter();
     const v = videoRef.current;
     if (!v) return;
     v.currentTime = hoverStart;
@@ -151,7 +156,8 @@ function ProjectCard({
   const handleLeave = () => {
     if (isMobile) return;
     setHovered(false);
-    setMouseTilt({ x: 0, y: 0 }); // straighten when the mouse leaves
+    setMouseTilt({ x: 0, y: 0 });
+    onCardLeave();
     const v = videoRef.current;
     if (!v) return;
     v.pause();
@@ -196,7 +202,7 @@ function ProjectCard({
               : `opacity 0.4s ease ${index * 0.05}s, transform 0.25s ease-out`,
             display: "flex",
             flexDirection: "column",
-            cursor: "pointer",
+            cursor: isMobile ? "pointer" : "none",
             willChange: "transform",
             ...cardStyle,
           }}
@@ -398,6 +404,8 @@ function ShowreelCard({ index }: { index: number }) {
 
 export default function PortfolioSection() {
   const [isMobile, setIsMobile] = useState(false);
+  const [cursorActive, setCursorActive] = useState(false);
+  const cursorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
@@ -406,6 +414,14 @@ export default function PortfolioSection() {
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
+
+  // move the custom cursor to the mouse position
+  const moveCursor = (e: React.MouseEvent) => {
+    const c = cursorRef.current;
+    if (!c) return;
+    c.style.left = `${e.clientX}px`;
+    c.style.top = `${e.clientY}px`;
+  };
 
   const projects: Project[] = [
     {
@@ -493,8 +509,50 @@ export default function PortfolioSection() {
         }
       `}</style>
 
+      {/* custom "View" cursor — desktop only, follows mouse, inverts via blend mode */}
+      {!isMobile && (
+        <div
+          ref={cursorRef}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: 84,
+            height: 84,
+            borderRadius: "50%",
+            background: "#FAFAFA",
+            color: "#121212",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "Manrope, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            gap: 4,
+            pointerEvents: "none",
+            zIndex: 9999,
+            mixBlendMode: "difference",
+            transform: `translate(-50%, -50%) scale(${cursorActive ? 1 : 0})`,
+            transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1)",
+            willChange: "transform, left, top",
+          }}
+        >
+          View
+          <span style={{ fontSize: 14 }}>→</span>
+        </div>
+      )}
+
       {projects.map((p, i) => (
-        <ProjectCard key={p.title} project={p} index={i} isMobile={isMobile} />
+        <ProjectCard
+          key={p.title}
+          project={p}
+          index={i}
+          isMobile={isMobile}
+          onCardEnter={() => setCursorActive(true)}
+          onCardLeave={() => setCursorActive(false)}
+          onCardMove={moveCursor}
+        />
       ))}
       <ShowreelCard index={5} />
     </div>
