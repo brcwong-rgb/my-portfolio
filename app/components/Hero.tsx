@@ -11,6 +11,20 @@ const TAGLINE_MIN = 22;
 const TAGLINE_MAX = 80;
 const TAGLINE_SCALE = 0.7;
 
+// ── ENTRANCE TIMELINE (all times in seconds, keyed off `entered`) ──
+const START_EVENT = "site:loaded";   // dispatch this from your preloader when it finishes
+const FALLBACK_MS = 1500;            // safety net if the event never arrives (raise if preloader runs longer)
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)"; // expo-out — the "expensive" curve
+
+const NAME_DUR = 0.8;         // per-letter rise duration
+const NAME_STAGGER = 0.055;   // gap between each letter
+const TAGLINE_DELAY = 0.4;    // tagline starts after name is underway
+const TAGLINE_DUR = 0.9;
+const HIGHLIGHT_DELAY = 1.0;  // underlines draw after tagline lands
+const HIGHLIGHT_STAGGER = 0.14;
+const CTA_DELAY = 0.85;       // CTA is last in
+const CTA_DUR = 0.75;
+
 export default function Hero({
   name = "brandon",
   tagline = "Shipping digital experiences that blend UX and motion to create engaging designs solutions.",
@@ -26,11 +40,10 @@ export default function Hero({
 }) {
   const letters = name.split("");
   const [hover, setHover] = useState(false);
-  const [visible, setVisible] = useState<boolean[]>([]);
+  const [entered, setEntered] = useState(false);
   const [fontSize, setFontSize] = useState(100);
   const [offsetEm, setOffsetEm] = useState(0);
   const [taglineSize, setTaglineSize] = useState(32);
-  const [highlightIn, setHighlightIn] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,6 +53,22 @@ export default function Hero({
   const taglineRef = useRef<HTMLParagraphElement>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const attemptsRef = useRef(0);
+
+  // ── ENTRANCE TRIGGER: fire on preloader event, with a safety fallback ──
+  useEffect(() => {
+    let fired = false;
+    const go = () => {
+      if (fired) return;
+      fired = true;
+      setEntered(true);
+    };
+    window.addEventListener(START_EVENT, go);
+    const fb = setTimeout(go, FALLBACK_MS);
+    return () => {
+      window.removeEventListener(START_EVENT, go);
+      clearTimeout(fb);
+    };
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
@@ -151,29 +180,6 @@ export default function Hero({
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    setVisible(Array(letters.length).fill(false));
-    setHighlightIn(false);
-
-    const timers = letters.map((_, i) =>
-      setTimeout(() => {
-        setVisible((prev) => {
-          const next = [...prev];
-          next[i] = true;
-          return next;
-        });
-      }, 200 + i * 60)
-    );
-
-    const revealDelay = 200 + letters.length * 60 + 500;
-    const revealTimer = setTimeout(() => setHighlightIn(true), revealDelay);
-
-    return () => {
-      timers.forEach(clearTimeout);
-      clearTimeout(revealTimer);
-    };
-  }, [name]);
-
   const scrollToProjects = () => {
     const el = document.getElementById(targetId);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -187,7 +193,7 @@ export default function Hero({
   const highlightSet = new Set(highlights);
   let hlIndex = 0;
 
-  // DESKTOP CTA — text + retracting underline + down arrow (unchanged)
+  // DESKTOP CTA — text + retracting underline + down arrow
   const desktopCta = (
     <button
       onClick={scrollToProjects}
@@ -272,6 +278,11 @@ export default function Hero({
         cursor: "pointer",
         padding: "14px 24px",
         marginBottom: 44,
+        // entrance
+        opacity: entered ? 1 : 0,
+        transform: entered ? "translateY(0)" : "translateY(16px)",
+        transition: `opacity ${CTA_DUR}s ${EASE} ${CTA_DELAY}s, transform ${CTA_DUR}s ${EASE} ${CTA_DELAY}s`,
+        willChange: "opacity, transform",
         WebkitTapHighlightColor: "transparent",
       }}
     >
@@ -351,12 +362,21 @@ export default function Hero({
               key={i}
               style={{
                 display: "inline-block",
-                opacity: visible[i] ? 1 : 0,
-                transform: visible[i] ? "translateY(0%)" : "translateY(30%)",
-                transition: `opacity 0.5s ease ${i * 0.06}s, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${i * 0.06}s`,
+                overflow: "hidden",
+                verticalAlign: "bottom",
+                paddingTop: "0.12em",
+                marginTop: "-0.12em",
               }}
             >
-              {letter}
+              <span
+                style={{
+                  display: "inline-block",
+                  transform: entered ? "translateY(0%)" : "translateY(110%)",
+                  transition: `transform ${NAME_DUR}s ${EASE} ${i * NAME_STAGGER}s`,
+                }}
+              >
+                {letter}
+              </span>
             </span>
           ))}
         </div>
@@ -367,10 +387,13 @@ export default function Hero({
         style={{
           width: "100%",
           boxSizing: "border-box",
-          padding: isMobile
-            ? `${TAGLINE_GAP}px 0 28px 0`
-            : "16px 0 24px 0",
+          padding: isMobile ? `${TAGLINE_GAP}px 0 28px 0` : "16px 0 24px 0",
           fontSize: isMobile ? taglineSize : "clamp(28px, 4.6vw, 80px)",
+          // entrance (vertical-only transform keeps the auto-fit measurement valid)
+          opacity: entered ? 1 : 0,
+          transform: entered ? "translateY(0)" : "translateY(22px)",
+          transition: `opacity ${TAGLINE_DUR}s ${EASE} ${TAGLINE_DELAY}s, transform ${TAGLINE_DUR}s ${EASE} ${TAGLINE_DELAY}s`,
+          willChange: "opacity, transform",
         }}
       >
         <p
@@ -391,7 +414,7 @@ export default function Hero({
 
           {parts.map((part, i) => {
             if (!highlightSet.has(part)) return <span key={i}>{part}</span>;
-            const delay = hlIndex++ * 0.14;
+            const delay = HIGHLIGHT_DELAY + hlIndex++ * HIGHLIGHT_STAGGER;
             return (
               <span
                 key={i}
@@ -412,19 +435,17 @@ export default function Hero({
                     width: "100%",
                     background: "#FAFAFA",
                     transformOrigin: "left",
-                    transform: highlightIn ? "scaleX(1)" : "scaleX(0)",
-                    transition: `transform 0.7s cubic-bezier(0.16,1,0.3,1) ${delay}s`,
+                    transform: entered ? "scaleX(1)" : "scaleX(0)",
+                    transition: `transform 0.7s ${EASE} ${delay}s`,
                     display: "block",
                   }}
-                >
-                </span>
+                />
               </span>
             );
           })}
         </p>
       </div>
 
-      {/* mobile: bold green pill, compact, left-aligned below the tagline */}
       {isMobile && mobileCta}
     </div>
   );

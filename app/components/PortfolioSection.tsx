@@ -5,6 +5,34 @@ import Link from "next/link";
 
 const MOBILE_BREAKPOINT = 900;
 
+// ── ENTRANCE (matches the hero: fires on the preloader's "site:loaded" event) ──
+const START_EVENT = "site:loaded";
+const FALLBACK_MS = 1500;
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+const CARD_DUR = 0.9;          // rise duration per card
+const CARDS_BASE_DELAY = 0.85; // cards start as the hero is settling
+const CARDS_STAGGER = 0.09;    // each card follows the previous one
+
+// shared entrance trigger — listens for the preloader event, with a safety fallback
+function useEntrance() {
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    let fired = false;
+    const go = () => {
+      if (fired) return;
+      fired = true;
+      setEntered(true);
+    };
+    window.addEventListener(START_EVENT, go);
+    const fb = setTimeout(go, FALLBACK_MS);
+    return () => {
+      window.removeEventListener(START_EVENT, go);
+      clearTimeout(fb);
+    };
+  }, []);
+  return entered;
+}
+
 type Project = {
   title: string;
   tag: string;
@@ -77,7 +105,7 @@ function ProjectCard({
   onCardLeave: () => void;
   onCardMove: (e: React.MouseEvent) => void;
 }) {
-  const [visible, setVisible] = useState(false);
+  const entered = useEntrance();
   const [hovered, setHovered] = useState(false);
   const [tilt, setTilt] = useState(0);
   const [mouseTilt, setMouseTilt] = useState({ x: 0, y: 0 });
@@ -91,20 +119,7 @@ function ProjectCard({
   const mobileFrame =
     typeof project.mobileFrame === "number" ? project.mobileFrame : 0;
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -8% 0px" }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
+  // subtle parallax tilt on mobile scroll (separate from the entrance)
   useEffect(() => {
     if (!isMobile) return;
     let raf = 0;
@@ -176,227 +191,124 @@ function ProjectCard({
     overflow: "hidden",
   };
 
-  const entranceTransform = visible ? "translateY(0px)" : "translateY(24px)";
   const mobileTiltTransform = `perspective(1200px) rotateX(${tilt}deg)`;
   const desktopTiltTransform = `perspective(1000px) rotateX(${mouseTilt.x}deg) rotateY(${mouseTilt.y}deg)`;
 
-  return (
-    <div
-      className="card-slot"
-      style={{ perspective: isMobile ? 1200 : 1000 }}
-    >
-      <Link href={project.href} style={{ textDecoration: "none" }}>
-        <div
-          ref={ref}
-          onMouseEnter={handleEnter}
-          onMouseLeave={handleLeave}
-          onMouseMove={handleMouseMove}
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: isMobile
-              ? `${mobileTiltTransform} ${entranceTransform}`
-              : `${desktopTiltTransform} ${entranceTransform}`,
-            transformOrigin: "center center",
-            transition: isMobile
-              ? `opacity 0.4s ease ${index * 0.05}s, transform 0.2s ease-out`
-              : `opacity 0.4s ease ${index * 0.05}s, transform 0.25s ease-out`,
-            display: "flex",
-            flexDirection: "column",
-            cursor: isMobile ? "pointer" : "none",
-            willChange: "transform",
-            ...cardStyle,
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: "16/10",
-              background: "#1e1e1e",
-              borderBottom: "0.5px solid #2a2a2a",
-              overflow: "hidden",
-            }}
-          >
-            <video
-              ref={videoRef}
-              src={isMobile ? mobileSrc : desktopSrc}
-              loop={!isMobile}
-              muted
-              playsInline
-              preload="metadata"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                objectPosition: "50% 50%",
-                display: "block",
-                transform: !isMobile && hovered ? "scale(1.04)" : "scale(1)",
-                transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
-              }}
-            />
-          </div>
-
-          <div style={{ padding: "0 18px 18px 18px" }}>
-            <MetaRow title={project.title} tag={project.tag} year={project.year} />
-
-            {(project.blurb || project.readTime) && (
-              <div style={{ paddingTop: 2 }}>
-                {project.blurb && (
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: 14,
-                      lineHeight: 1.45,
-                      fontWeight: 500,
-                      color: "#8A8A8A",
-                      letterSpacing: "0.005em",
-                    }}
-                  >
-                    {project.blurb}
-                  </p>
-                )}
-                {project.readTime && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginTop: 10,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: "#CDFE88",
-                        display: "inline-block",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "#707070",
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {project.readTime}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </Link>
-    </div>
-  );
-}
-
-function ShowreelCard({ index }: { index: number }) {
-  const [visible, setVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -8% 0px" }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
+  // cascade delay — each card follows the previous, timed to flow after the hero
+  const entranceDelay = CARDS_BASE_DELAY + index * CARDS_STAGGER;
 
   return (
-    <div className="card-slot showreel-slot">
+    <div className="card-slot" style={{ perspective: isMobile ? 1200 : 1000 }}>
+      {/* ENTRANCE WRAPPER — cascades in on load, no scroll trigger */}
       <div
-        ref={ref}
         style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0px)" : "translateY(24px)",
-          transition: `opacity 0.4s ease ${index * 0.05}s, transform 0.5s cubic-bezier(0.16,1,0.3,1) ${index * 0.05}s`,
-          display: "flex",
-          flexDirection: "column",
-          background: "#1e1e1e",
-          border: "0.5px solid #2a2a2a",
-          borderRadius: 16,
-          overflow: "hidden",
+          opacity: entered ? 1 : 0,
+          transform: entered ? "translateY(0)" : "translateY(26px)",
+          transition: `opacity ${CARD_DUR}s ${EASE} ${entranceDelay}s, transform ${CARD_DUR}s ${EASE} ${entranceDelay}s`,
+          willChange: "opacity, transform",
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            aspectRatio: "21/9",
-            background: "#1e1e1e",
-            borderBottom: "0.5px solid #2a2a2a",
-            overflow: "hidden",
-            position: "relative",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 16,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span
+        <Link href={project.href} style={{ textDecoration: "none" }}>
+          <div
+            ref={ref}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
+            onMouseMove={handleMouseMove}
+            style={{
+              // tilt only — the entrance lives on the wrapper above
+              transform: isMobile ? mobileTiltTransform : desktopTiltTransform,
+              transformOrigin: "center center",
+              transition: "transform 0.25s ease-out",
+              display: "flex",
+              flexDirection: "column",
+              cursor: isMobile ? "pointer" : "none",
+              willChange: "transform",
+              ...cardStyle,
+            }}
+          >
+            <div
               style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "#CDFE88",
-                display: "inline-block",
-              }}
-            />
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#CDFE88",
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
+                width: "100%",
+                aspectRatio: "16/10",
+                background: "#1e1e1e",
+                borderBottom: "0.5px solid #2a2a2a",
+                overflow: "hidden",
               }}
             >
-              Coming Soon
-            </span>
+              <video
+                ref={videoRef}
+                src={isMobile ? mobileSrc : desktopSrc}
+                loop={!isMobile}
+                muted
+                playsInline
+                preload="metadata"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: "50% 50%",
+                  display: "block",
+                  transform: !isMobile && hovered ? "scale(1.04)" : "scale(1)",
+                  transition: "transform 0.6s cubic-bezier(0.16,1,0.3,1)",
+                }}
+              />
+            </div>
+
+            <div style={{ padding: "0 18px 18px 18px" }}>
+              <MetaRow title={project.title} tag={project.tag} year={project.year} />
+
+              {(project.blurb || project.readTime) && (
+                <div style={{ paddingTop: 2 }}>
+                  {project.blurb && (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 14,
+                        lineHeight: 1.45,
+                        fontWeight: 500,
+                        color: "#8A8A8A",
+                        letterSpacing: "0.005em",
+                      }}
+                    >
+                      {project.blurb}
+                    </p>
+                  )}
+                  {project.readTime && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 10,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          background: "#CDFE88",
+                          display: "inline-block",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "#707070",
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {project.readTime}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-
-          <span
-            style={{
-              fontSize: "clamp(20px, 3vw, 34px)",
-              fontWeight: 800,
-              color: "#FAFAFA",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.1,
-              textAlign: "center",
-            }}
-          >
-            Showreel in the works
-          </span>
-
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#757575",
-              letterSpacing: "0.01em",
-              textAlign: "center",
-              maxWidth: 380,
-              padding: "0 24px",
-            }}
-          >
-            A motion reel is currently in production. Check back soon.
-          </span>
-        </div>
-
-        <div style={{ padding: "0 18px 18px 18px" }}>
-          <MetaRow title="Showreel" tag="Motion" year="2026" />
-        </div>
+        </Link>
       </div>
     </div>
   );
@@ -483,7 +395,6 @@ export default function PortfolioSection() {
           row-gap: 48px;
           padding: 48px 48px 120px;
         }
-        .showreel-slot { grid-column: 1 / -1; }
         .card-meta {
           display: flex;
           align-items: center;
@@ -554,7 +465,6 @@ export default function PortfolioSection() {
           onCardMove={moveCursor}
         />
       ))}
-      <ShowreelCard index={5} />
     </div>
   );
 }

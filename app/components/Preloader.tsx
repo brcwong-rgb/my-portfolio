@@ -43,6 +43,8 @@ export default function Preloader() {
       setPct(100);
       setTimeout(() => {
         setFinished(true);
+        // ── tell the rest of the site to start its entrance as the loader slides away ──
+        window.dispatchEvent(new Event("site:loaded"));
         setTimeout(() => setHidden(true), 800);
       }, 350);
     };
