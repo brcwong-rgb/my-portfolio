@@ -73,7 +73,8 @@ function ProjectCard({
 }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [tilt, setTilt] = useState(0);
+  const [tilt, setTilt] = useState(0); // mobile scroll tilt (rotateX)
+  const [mouseTilt, setMouseTilt] = useState({ x: 0, y: 0 }); // desktop mouse tilt
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -92,12 +93,13 @@ function ProjectCard({
           observer.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.1, rootMargin: "0px 0px -8% 0px" }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
 
+  // mobile: scroll-based 3D tilt
   useEffect(() => {
     if (!isMobile) return;
     let raf = 0;
@@ -121,6 +123,22 @@ function ProjectCard({
     };
   }, [isMobile]);
 
+  // desktop: subtle mouse-position tilt
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isMobile) return;
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width; // 0..1
+    const py = (e.clientY - rect.top) / rect.height; // 0..1
+    const MAX = 5; // degrees — subtle
+    // rotateY follows horizontal, rotateX follows vertical (inverted)
+    setMouseTilt({
+      x: (0.5 - py) * MAX * 2,
+      y: (px - 0.5) * MAX * 2,
+    });
+  };
+
   const handleEnter = () => {
     if (isMobile) return;
     setHovered(true);
@@ -133,6 +151,7 @@ function ProjectCard({
   const handleLeave = () => {
     if (isMobile) return;
     setHovered(false);
+    setMouseTilt({ x: 0, y: 0 }); // straighten when the mouse leaves
     const v = videoRef.current;
     if (!v) return;
     v.pause();
@@ -144,7 +163,6 @@ function ProjectCard({
     : project.video;
   const mobileSrc = `${project.video}#t=${mobileFrame}`;
 
-  // off-black card on both desktop and mobile now
   const cardStyle: React.CSSProperties = {
     background: "#1e1e1e",
     border: "0.5px solid #2a2a2a",
@@ -152,32 +170,34 @@ function ProjectCard({
     overflow: "hidden",
   };
 
-  const entranceTransform = visible ? "translateY(0px)" : "translateY(50px)";
+  const entranceTransform = visible ? "translateY(0px)" : "translateY(24px)";
   const mobileTiltTransform = `perspective(1200px) rotateX(${tilt}deg)`;
+  const desktopTiltTransform = `perspective(1000px) rotateX(${mouseTilt.x}deg) rotateY(${mouseTilt.y}deg)`;
 
   return (
     <div
       className="card-slot"
-      style={isMobile ? { perspective: 1200 } : undefined}
+      style={{ perspective: isMobile ? 1200 : 1000 }}
     >
       <Link href={project.href} style={{ textDecoration: "none" }}>
         <div
           ref={ref}
           onMouseEnter={handleEnter}
           onMouseLeave={handleLeave}
+          onMouseMove={handleMouseMove}
           style={{
             opacity: visible ? 1 : 0,
             transform: isMobile
               ? `${mobileTiltTransform} ${entranceTransform}`
-              : entranceTransform,
+              : `${desktopTiltTransform} ${entranceTransform}`,
             transformOrigin: "center center",
             transition: isMobile
-              ? `opacity 0.8s ease ${index * 0.15}s, transform 0.2s ease-out`
-              : `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
+              ? `opacity 0.4s ease ${index * 0.05}s, transform 0.2s ease-out`
+              : `opacity 0.4s ease ${index * 0.05}s, transform 0.25s ease-out`,
             display: "flex",
             flexDirection: "column",
             cursor: "pointer",
-            willChange: isMobile ? "transform" : undefined,
+            willChange: "transform",
             ...cardStyle,
           }}
         >
@@ -280,7 +300,7 @@ function ShowreelCard({ index }: { index: number }) {
           observer.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.1, rootMargin: "0px 0px -8% 0px" }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
@@ -292,8 +312,8 @@ function ShowreelCard({ index }: { index: number }) {
         ref={ref}
         style={{
           opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0px)" : "translateY(50px)",
-          transition: `opacity 0.8s ease ${index * 0.15}s, transform 0.8s cubic-bezier(0.16,1,0.3,1) ${index * 0.15}s`,
+          transform: visible ? "translateY(0px)" : "translateY(24px)",
+          transition: `opacity 0.4s ease ${index * 0.05}s, transform 0.5s cubic-bezier(0.16,1,0.3,1) ${index * 0.05}s`,
           display: "flex",
           flexDirection: "column",
           background: "#1e1e1e",
