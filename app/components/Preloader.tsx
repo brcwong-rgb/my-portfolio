@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 
 const MIN_DURATION = 600;
-const MAX_WAIT = 3000;
+const MAX_WAIT = 2600;
+const HARD_LIFT = 4000;
 const HOLD = 300;
 const WIPE = 700;
-const FALLBACK_AFTER = 5000; // show contact/PDF fallback if still loading after 5s
+const FALLBACK_AFTER = 3500;
 
 const EMAIL_USER = "bwong127";
 const EMAIL_DOMAIN = "asu.edu";
@@ -18,62 +19,22 @@ export default function Preloader() {
   const [hidden, setHidden] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
 
-  const readyRef = useRef(false);
   const doneRef = useRef(false);
-  const startRef = useRef(0);
-  const rafRef = useRef(0);
 
   useEffect(() => {
-    startRef.current = performance.now();
-    let cancelled = false;
+    const start = Date.now();
+    let readyAt = 0;
 
-    const waits: Promise<unknown>[] = [];
-
-    waits.push(
-      document.readyState === "loading"
-        ? new Promise<void>((r) =>
-            document.addEventListener("DOMContentLoaded", () => r(), { once: true })
-          )
-        : Promise.resolve()
-    );
-
-    if ("fonts" in document) {
-      waits.push(
-        Promise.race([
-          (document as Document & { fonts: FontFaceSet }).fonts.ready,
-          new Promise((r) => setTimeout(r, MAX_WAIT)),
-        ])
-      );
+    const markReady = () => {
+      if (readyAt === 0) readyAt = Date.now();
+    };
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      markReady();
+    } else {
+      document.addEventListener("DOMContentLoaded", markReady, { once: true });
     }
-
-    waits.push(
-      new Promise<void>((resolve) => {
-        setTimeout(() => {
-          const imgs = Array.from(document.images);
-          if (!imgs.length) return resolve();
-          let left = imgs.length;
-          const one = () => (--left <= 0 ? resolve() : undefined);
-          imgs.forEach((img) => {
-            if (img.complete) one();
-            else {
-              img.addEventListener("load", one, { once: true });
-              img.addEventListener("error", one, { once: true });
-            }
-          });
-        }, 50);
-      })
-    );
-
-    Promise.all(waits).then(() => {
-      if (!cancelled) readyRef.current = true;
-    });
-
-    const cap = setTimeout(() => (readyRef.current = true), MAX_WAIT);
-
-    // if we're somehow STILL on the loader after 5s, surface the fallback
-    const fallbackTimer = setTimeout(() => {
-      if (!doneRef.current) setShowFallback(true);
-    }, FALLBACK_AFTER);
+    window.addEventListener("load", markReady, { once: true });
+    const readyCap = setTimeout(markReady, MAX_WAIT);
 
     const lift = () => {
       if (doneRef.current) return;
@@ -85,35 +46,35 @@ export default function Preloader() {
       }, HOLD);
     };
 
-    const tick = () => {
-      const elapsed = performance.now() - startRef.current;
+    const interval = setInterval(() => {
+      if (doneRef.current) return;
+      const elapsed = Date.now() - start;
       const minMet = elapsed >= MIN_DURATION;
+      const ready = readyAt !== 0;
 
       setPct((prev) => {
-        const ceiling = readyRef.current && minMet ? 100 : 88;
+        const ceiling = ready && minMet ? 100 : 90;
         if (prev >= ceiling) return prev;
-        const next = prev + Math.max(1, (ceiling - prev) * 0.1);
+        const next = prev + Math.max(1, (ceiling - prev) * 0.12);
         return Math.min(ceiling, next);
       });
 
-      if (readyRef.current && minMet) {
-        setPct((prev) => {
-          if (prev >= 99 && !doneRef.current) lift();
-          return prev;
-        });
-      }
-      if (!doneRef.current) rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
+      if (ready && minMet) lift();
+    }, 40);
 
-    const backstop = setTimeout(lift, MAX_WAIT + MIN_DURATION + 600);
+    const fallbackTimer = setTimeout(() => {
+      if (!doneRef.current) setShowFallback(true);
+    }, FALLBACK_AFTER);
+
+    const hardLift = setTimeout(lift, HARD_LIFT);
 
     return () => {
-      cancelled = true;
-      clearTimeout(cap);
+      clearInterval(interval);
+      clearTimeout(readyCap);
       clearTimeout(fallbackTimer);
-      clearTimeout(backstop);
-      cancelAnimationFrame(rafRef.current);
+      clearTimeout(hardLift);
+      document.removeEventListener("DOMContentLoaded", markReady);
+      window.removeEventListener("load", markReady);
     };
   }, []);
 
@@ -136,7 +97,6 @@ export default function Preloader() {
         pointerEvents: lifting ? "none" : "auto",
       }}
     >
-      {/* centered counter */}
       <div
         style={{
           display: "flex",
@@ -168,7 +128,6 @@ export default function Preloader() {
         </span>
       </div>
 
-      {/* subtle fallback — only appears if loading drags past 5s */}
       <div
         style={{
           position: "absolute",
@@ -201,9 +160,7 @@ export default function Preloader() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           <button
-            onClick={() =>
-              window.open(WORK_SAMPLE_URL, "_blank", "noopener,noreferrer")
-            }
+            onClick={() => window.open(WORK_SAMPLE_URL, "_blank", "noopener,noreferrer")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -237,10 +194,10 @@ export default function Preloader() {
           </button>
 
           <button
-            onClick={() => {
-              window.location.href = `mailto:${EMAIL_USER}@${EMAIL_DOMAIN}`;
-            }}
+            onClick={() => { window.location.href = "mailto:" + EMAIL_USER + "@" + EMAIL_DOMAIN; }}
             style={{
+              display: "inline-flex",
+              alignItems: "center",
               background: "none",
               border: "0.5px solid #404040",
               borderRadius: 999,
