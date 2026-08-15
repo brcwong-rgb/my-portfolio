@@ -2,95 +2,124 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const MIN_DURATION = 700;   // minimum time the loader shows
-const MAX_DURATION = 2500;  // FAIL-SAFE: force ready after this no matter what
-const HARD_STOP = 3500;     // absolute stop: force the whole thing gone
+const MIN_DURATION = 600;
+const MAX_WAIT = 3000;
+const HOLD = 300;
+const WIPE = 700;
+const FALLBACK_AFTER = 5000; // show contact/PDF fallback if still loading after 5s
+
+const EMAIL_USER = "bwong127";
+const EMAIL_DOMAIN = "asu.edu";
+const WORK_SAMPLE_URL = "/treevah-work-sample.pdf";
 
 export default function Preloader() {
   const [pct, setPct] = useState(0);
-  const [finished, setFinished] = useState(false);
+  const [lifting, setLifting] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const startRef = useRef<number>(Date.now());
-  const pageReadyRef = useRef(false);
-  const finishedRef = useRef(false);
-  const rafRef = useRef<number>(0);
+  const [showFallback, setShowFallback] = useState(false);
+
+  const readyRef = useRef(false);
+  const doneRef = useRef(false);
+  const startRef = useRef(0);
+  const rafRef = useRef(0);
 
   useEffect(() => {
-    startRef.current = Date.now();
+    startRef.current = performance.now();
+    let cancelled = false;
 
-    const markReady = () => {
-      pageReadyRef.current = true;
-    };
+    const waits: Promise<unknown>[] = [];
 
-    // Ready as soon as the DOM is parsed — do NOT wait on window "load",
-    // because that waits on videos/images that corporate proxies (Zscaler)
-    // may block, which would hang the loader forever.
-    if (
-      document.readyState === "interactive" ||
-      document.readyState === "complete"
-    ) {
-      markReady();
-    } else {
-      document.addEventListener("DOMContentLoaded", markReady);
+    waits.push(
+      document.readyState === "loading"
+        ? new Promise<void>((r) =>
+            document.addEventListener("DOMContentLoaded", () => r(), { once: true })
+          )
+        : Promise.resolve()
+    );
+
+    if ("fonts" in document) {
+      waits.push(
+        Promise.race([
+          (document as Document & { fonts: FontFaceSet }).fonts.ready,
+          new Promise((r) => setTimeout(r, MAX_WAIT)),
+        ])
+      );
     }
 
-    // FAIL-SAFE: treat as ready after MAX_DURATION regardless of anything
-    const failSafe = setTimeout(markReady, MAX_DURATION);
+    waits.push(
+      new Promise<void>((resolve) => {
+        setTimeout(() => {
+          const imgs = Array.from(document.images);
+          if (!imgs.length) return resolve();
+          let left = imgs.length;
+          const one = () => (--left <= 0 ? resolve() : undefined);
+          imgs.forEach((img) => {
+            if (img.complete) one();
+            else {
+              img.addEventListener("load", one, { once: true });
+              img.addEventListener("error", one, { once: true });
+            }
+          });
+        }, 50);
+      })
+    );
 
-    const finish = () => {
-      if (finishedRef.current) return;
-      finishedRef.current = true;
+    Promise.all(waits).then(() => {
+      if (!cancelled) readyRef.current = true;
+    });
+
+    const cap = setTimeout(() => (readyRef.current = true), MAX_WAIT);
+
+    // if we're somehow STILL on the loader after 5s, surface the fallback
+    const fallbackTimer = setTimeout(() => {
+      if (!doneRef.current) setShowFallback(true);
+    }, FALLBACK_AFTER);
+
+    const lift = () => {
+      if (doneRef.current) return;
+      doneRef.current = true;
       setPct(100);
       setTimeout(() => {
-        setFinished(true);
-        // ── tell the rest of the site to start its entrance as the loader slides away ──
-        window.dispatchEvent(new Event("site:loaded"));
-        setTimeout(() => setHidden(true), 800);
-      }, 350);
+        setLifting(true);
+        setTimeout(() => setHidden(true), WIPE);
+      }, HOLD);
     };
 
     const tick = () => {
-      const elapsed = Date.now() - startRef.current;
-      const ready = pageReadyRef.current;
+      const elapsed = performance.now() - startRef.current;
       const minMet = elapsed >= MIN_DURATION;
 
       setPct((prev) => {
-        const ceiling = ready && minMet ? 100 : 90;
+        const ceiling = readyRef.current && minMet ? 100 : 88;
         if (prev >= ceiling) return prev;
-        const step = Math.max(0.8, (ceiling - prev) * 0.08);
-        return Math.min(ceiling, prev + step);
+        const next = prev + Math.max(1, (ceiling - prev) * 0.1);
+        return Math.min(ceiling, next);
       });
 
-      if (ready && minMet) {
+      if (readyRef.current && minMet) {
         setPct((prev) => {
-          if (prev >= 99 && !finishedRef.current) {
-            finish();
-          }
+          if (prev >= 99 && !doneRef.current) lift();
           return prev;
         });
       }
-
-      if (!finishedRef.current) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
+      if (!doneRef.current) rafRef.current = requestAnimationFrame(tick);
     };
-
     rafRef.current = requestAnimationFrame(tick);
 
-    // absolute backstop — force everything gone no matter what state
-    const hardStop = setTimeout(finish, HARD_STOP);
+    const backstop = setTimeout(lift, MAX_WAIT + MIN_DURATION + 600);
 
     return () => {
-      document.removeEventListener("DOMContentLoaded", markReady);
-      clearTimeout(failSafe);
-      clearTimeout(hardStop);
+      cancelled = true;
+      clearTimeout(cap);
+      clearTimeout(fallbackTimer);
+      clearTimeout(backstop);
       cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
   if (hidden) return null;
 
-  const shown = Math.round(pct);
+  const shown = Math.min(100, Math.round(pct));
 
   return (
     <div
@@ -99,38 +128,135 @@ export default function Preloader() {
         inset: 0,
         zIndex: 9999,
         background: "#121212",
-        transform: finished ? "translateY(-100%)" : "translateY(0)",
-        transition: "transform 0.8s cubic-bezier(0.76,0,0.24,1)",
-        pointerEvents: finished ? "none" : "auto",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transform: lifting ? "translateY(-100%)" : "translateY(0)",
+        transition: "transform 0.7s cubic-bezier(0.76,0,0.24,1)",
+        pointerEvents: lifting ? "none" : "auto",
       }}
     >
+      {/* centered counter */}
       <div
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          height: 3,
-          width: `${shown}%`,
-          background: "#CDFE88",
-          transition: "width 0.2s ease-out",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          right: "clamp(20px, 5vw, 64px)",
-          bottom: "clamp(20px, 5vw, 48px)",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 2,
           fontFamily: "Manrope, sans-serif",
           fontWeight: 800,
           letterSpacing: "-0.04em",
           lineHeight: 1,
-          fontSize: "clamp(80px, 18vw, 240px)",
           color: "#FAFAFA",
         }}
       >
-        {shown}
-        <span style={{ color: "#CDFE88" }}>%</span>
+        <span
+          style={{
+            fontSize: "clamp(56px, 12vw, 150px)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {shown}
+        </span>
+        <span
+          style={{
+            fontSize: "clamp(20px, 4vw, 44px)",
+            color: "#CDFE88",
+            transform: "translateY(-0.15em)",
+          }}
+        >
+          %
+        </span>
+      </div>
+
+      {/* subtle fallback — only appears if loading drags past 5s */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "clamp(28px, 6vw, 56px)",
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 14,
+          width: "min(90%, 420px)",
+          textAlign: "center",
+          opacity: showFallback ? 1 : 0,
+          transition: "opacity 0.6s ease",
+          pointerEvents: showFallback ? "auto" : "none",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'Work Sans', sans-serif",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#757575",
+            letterSpacing: "0.01em",
+            lineHeight: 1.5,
+          }}
+        >
+          Taking a while? Your network may be blocking parts of this site.
+        </span>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={() =>
+              window.open(WORK_SAMPLE_URL, "_blank", "noopener,noreferrer")
+            }
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#CDFE88",
+              color: "#121212",
+              border: "none",
+              borderRadius: 999,
+              padding: "10px 18px",
+              fontFamily: "'Work Sans', sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            View Work Sample (PDF)
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#121212"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: 13, height: 13 }}
+            >
+              <path d="M7 17L17 7" />
+              <path d="M7 7h10v10" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => {
+              window.location.href = `mailto:${EMAIL_USER}@${EMAIL_DOMAIN}`;
+            }}
+            style={{
+              background: "none",
+              border: "0.5px solid #404040",
+              borderRadius: 999,
+              padding: "10px 18px",
+              fontFamily: "'Work Sans', sans-serif",
+              fontSize: 13,
+              fontWeight: 600,
+              letterSpacing: "0.01em",
+              color: "#FAFAFA",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            Contact
+          </button>
+        </div>
       </div>
     </div>
   );
