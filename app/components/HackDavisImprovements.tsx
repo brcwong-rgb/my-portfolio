@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
@@ -8,6 +10,9 @@ const LINE = "#2a2a2a";
 const ACCENT = "#CDFE88";
 const WORK_SANS = "'Work Sans', sans-serif";
 const MANROPE = "Manrope, sans-serif";
+
+const MOBILE_BREAKPOINT = 900;
+const BODY_MAX = 640; // ~68 characters — comfortable reading measure
 
 const WORKED = [
   "Navigation scored 7.8/10 across 11 judges",
@@ -21,53 +26,42 @@ const TO_FIX = [
   "Teams with 5 to 8 tracks made the scoring screen a long scroll",
 ];
 
-function ThemeList({
-  label,
-  items,
-  accent,
-}: {
-  label: string;
-  items: string[];
-  accent: boolean;
-}) {
+function ThemeList({ label, items, accent }: { label: string; items: string[]; accent: boolean }) {
   return (
-    <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+    <div style={{ flex: "1 1 300px", minWidth: 0 }}>
       <span
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           color: accent ? ACCENT : DIM,
-          letterSpacing: "0.08em",
+          letterSpacing: "0.1em",
           textTransform: "uppercase",
           fontFamily: WORK_SANS,
           display: "block",
-          marginBottom: 20,
+          marginBottom: 24,
         }}
       >
         {label}
       </span>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {items.map((item) => (
-          <div
-            key={item}
-            style={{ display: "flex", gap: 14, alignItems: "flex-start" }}
-          >
+          <div key={item} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
             <span
               style={{
-                width: 6,
-                height: 6,
+                width: 5,
+                height: 5,
                 borderRadius: "50%",
                 background: accent ? ACCENT : "#404040",
                 flexShrink: 0,
-                marginTop: 9,
+                marginTop: 10,
               }}
             />
             <span
               style={{
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: 400,
                 color: "#D4D4D4",
-                lineHeight: 1.55,
+                lineHeight: 1.6,
                 fontFamily: WORK_SANS,
               }}
             >
@@ -81,6 +75,48 @@ function ThemeList({
 }
 
 export default function HackDavisImprovements() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const label: React.CSSProperties = {
+    display: "block",
+    fontSize: 12,
+    fontWeight: 600,
+    color: DIM,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    fontFamily: WORK_SANS,
+    marginBottom: 20,
+  };
+
+  const h2: React.CSSProperties = {
+    fontSize: "clamp(26px, 2.2vw, 32px)",
+    fontWeight: 600,
+    color: INK,
+    letterSpacing: "-0.02em",
+    lineHeight: 1.3,
+    margin: 0,
+    maxWidth: 720,
+    fontFamily: MANROPE,
+  };
+
+  const body: React.CSSProperties = {
+    fontSize: isMobile ? 17 : 18,
+    fontWeight: 400,
+    color: "#D4D4D4",
+    lineHeight: 1.65,
+    margin: "28px 0 0 0",
+    maxWidth: BODY_MAX,
+    fontFamily: WORK_SANS,
+  };
+
   return (
     <div
       id="improvements"
@@ -88,97 +124,52 @@ export default function HackDavisImprovements() {
         width: "100%",
         background: BG,
         boxSizing: "border-box",
-        padding: "96px 48px 0",
+        padding: isMobile ? "64px 20px 0" : "96px 48px 0",
         display: "grid",
-        gridTemplateColumns: "280px minmax(0, 1fr)",
-        gap: 48,
+        gridTemplateColumns: isMobile ? "1fr" : "280px minmax(0, 1fr)",
+        gap: isMobile ? 0 : 48,
         alignItems: "start",
       }}
     >
-      {/* gutter — mirrors the sticky nav column */}
-      <div />
+      {!isMobile && <div />}
 
       <div style={{ width: "100%" }}>
-        {/* ---- section header ---- */}
-        <span
-          style={{
-            display: "block",
-            fontSize: 22,
-            fontWeight: 400,
-            color: INK,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            fontFamily: WORK_SANS,
-            marginBottom: 16,
-          }}
-        >
-          Improvements
-        </span>
-        <h2
-          style={{
-            fontSize: "clamp(24px, 2.4vw, 36px)",
-            fontWeight: 700,
-            color: INK,
-            letterSpacing: "-0.01em",
-            lineHeight: 1.35,
-            margin: 0,
-            maxWidth: 1000,
-            fontFamily: MANROPE,
-          }}
-        >
-          What the judges told us after the event
-        </h2>
+        <span style={label}>Improvements</span>
+        <h2 style={h2}>What the judges told us after the event</h2>
 
-        {/* ---- feedback summary ---- */}
         <div id="feedback">
-          <p
-            style={{
-              fontSize: 19,
-              fontWeight: 400,
-              color: "#D4D4D4",
-              lineHeight: 1.65,
-              margin: "48px 0 0 0",
-              maxWidth: 960,
-              fontFamily: WORK_SANS,
-            }}
-          >
-            After judging ended, I sent out a feedback form and heard back
-            from 11 judges. The scores were strong, but the most useful
-            finding was where the friction actually lived. It was not the
-            interface. It was the walk between tables.
+          <p style={body}>
+            After judging ended, I sent out a feedback form and heard back from 11 judges. The scores were strong, but the most useful finding was where the friction actually lived. It was not the interface. It was the walk between tables.
           </p>
 
-          {/* pull quote */}
           <blockquote
             style={{
-              margin: "40px 0 0 0",
-              padding: "8px 0 8px 24px",
+              margin: "48px 0 0 0",
+              padding: "4px 0 4px 24px",
               borderLeft: `2px solid ${ACCENT}`,
-              maxWidth: 880,
+              maxWidth: 720,
             }}
           >
             <p
               style={{
-                fontSize: "clamp(20px, 2vw, 26px)",
-                fontWeight: 600,
+                fontSize: "clamp(19px, 1.8vw, 24px)",
+                fontWeight: 500,
                 color: INK,
                 letterSpacing: "-0.01em",
-                lineHeight: 1.4,
+                lineHeight: 1.45,
                 margin: 0,
                 fontFamily: MANROPE,
               }}
             >
-              “The judging app is the best I&rsquo;ve seen so far across all
-              the hackathons I&rsquo;ve attended, both as a judge and a
-              participant.”
+              &ldquo;The judging app is the best I&rsquo;ve seen so far across all the hackathons I&rsquo;ve attended, both as a judge and a participant.&rdquo;
             </p>
             <span
               style={{
                 display: "block",
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: 500,
                 color: DIM,
-                marginTop: 12,
+                marginTop: 16,
                 fontFamily: WORK_SANS,
               }}
             >
@@ -186,97 +177,65 @@ export default function HackDavisImprovements() {
             </span>
           </blockquote>
 
-          {/* worked / to fix */}
           <div
             style={{
               display: "flex",
               flexWrap: "wrap",
-              gap: 48,
-              marginTop: 56,
+              gap: isMobile ? 40 : 56,
+              marginTop: 64,
             }}
           >
             <ThemeList label="What worked" items={WORKED} accent />
             <ThemeList label="What to improve" items={TO_FIX} accent={false} />
           </div>
 
-          {/* the thesis line */}
           <p
             style={{
-              fontSize: "clamp(20px, 2vw, 26px)",
-              fontWeight: 600,
+              fontSize: "clamp(19px, 1.8vw, 24px)",
+              fontWeight: 500,
               color: INK,
               letterSpacing: "-0.01em",
-              lineHeight: 1.4,
-              margin: "64px 0 0 0",
-              maxWidth: 900,
+              lineHeight: 1.45,
+              margin: "72px 0 0 0",
+              maxWidth: 720,
               fontFamily: MANROPE,
             }}
           >
-            The takeaway reframed the product. A judging app is a routing
-            tool, not just a scoring form.
+            The takeaway reframed the product. A judging app is a routing tool, not just a scoring form.
           </p>
         </div>
 
-        {/* ---- edge case subsection ---- */}
-        <div id="edge-cases" style={{ marginTop: 112 }}>
+        <div id="edge-cases" style={{ marginTop: isMobile ? 80 : 112 }}>
+          <span style={label}>Edge Case</span>
+
           <h3
             style={{
-              fontSize: "clamp(22px, 2.2vw, 30px)",
-              fontWeight: 700,
+              fontSize: "clamp(20px, 1.9vw, 25px)",
+              fontWeight: 600,
               color: INK,
               letterSpacing: "-0.01em",
-              lineHeight: 1.2,
+              lineHeight: 1.3,
               margin: 0,
               fontFamily: MANROPE,
             }}
           >
-            Edge Case
+            Two judges at one table
           </h3>
 
-          <h4
-            style={{
-              fontSize: "clamp(19px, 1.9vw, 25px)",
-              fontWeight: 700,
-              color: INK,
-              letterSpacing: "-0.01em",
-              lineHeight: 1.2,
-              margin: "40px 0 0 0",
-              fontFamily: MANROPE,
-            }}
-          >
-            Two judges at one table
-          </h4>
-
-          <p
-            style={{
-              fontSize: 19,
-              fontWeight: 400,
-              color: "#D4D4D4",
-              lineHeight: 1.65,
-              margin: "16px 0 0 0",
-              maxWidth: 800,
-              fontFamily: WORK_SANS,
-            }}
-          >
-            Sometimes two judges were assigned to the same booth at the same
-            time. The flow assumed one judge per table, which left them
-            unsure whether to wait or move on. When the app detects an
-            overlap, it now surfaces a small note so both judges know they
-            can score in parallel and keep the round moving.
+          <p style={{ ...body, margin: "24px 0 0 0" }}>
+            Sometimes two judges were assigned to the same booth at the same time. The flow assumed one judge per table, which left them unsure whether to wait or move on. When the app detects an overlap, it now surfaces a small note so both judges know they can score in parallel and keep the round moving.
           </p>
 
-          {/* note screen + standalone notification close-up */}
           <div
             style={{
               display: "flex",
               flexWrap: "wrap",
               gap: 24,
-              marginTop: 40,
+              marginTop: 48,
               alignItems: "flex-start",
             }}
           >
-            {/* full screen with the note, captioned */}
-            <figure style={{ margin: 0, flex: "1 1 260px", maxWidth: 300 }}>
+            <figure style={{ margin: 0, flex: "1 1 240px", maxWidth: 300 }}>
               <div
                 style={{
                   background: CARD,
@@ -300,20 +259,19 @@ export default function HackDavisImprovements() {
               </div>
               <figcaption
                 style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 400,
                   color: DIM,
                   lineHeight: 1.5,
                   fontFamily: WORK_SANS,
-                  marginTop: 12,
+                  marginTop: 14,
                 }}
               >
                 The note shown when two judges share a team
               </figcaption>
             </figure>
 
-            {/* standalone notification close-up, no caption */}
-            <div style={{ flex: "1 1 260px", maxWidth: 360 }}>
+            <div style={{ flex: "1 1 240px", maxWidth: 360 }}>
               <div
                 style={{
                   background: CARD,

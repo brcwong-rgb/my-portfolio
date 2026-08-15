@@ -1,23 +1,20 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
 const CARD = "#1e1e1e";
 const LINE = "#2a2a2a";
+const ACCENT = "#CDFE88";
 const WORK_SANS = "'Work Sans', sans-serif";
 const MANROPE = "Manrope, sans-serif";
 
-type Screen = {
-  src: string; // file in /public
-  caption: string;
-};
+const MOBILE_BREAKPOINT = 900;
 
-type Decision = {
-  title: string;
-  body: string;
-  screens: Screen[];
-};
+type Screen = { src: string; caption: string };
+type Decision = { title: string; body: string; screens: Screen[] };
 
 const DECISIONS: Decision[] = [
   {
@@ -47,16 +44,9 @@ const DECISIONS: Decision[] = [
   },
 ];
 
-function ScreenFrame({ src, caption }: Screen) {
+function Mockup({ src, caption }: Screen) {
   return (
-    <figure
-      style={{
-        margin: 0,
-        flex: "1 1 0",
-        minWidth: 0,
-        maxWidth: 300,
-      }}
-    >
+    <figure style={{ margin: 0, width: "100%" }}>
       <div
         style={{
           background: CARD,
@@ -64,9 +54,6 @@ function ScreenFrame({ src, caption }: Screen) {
           borderRadius: 8,
           padding: 16,
           boxSizing: "border-box",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
         }}
       >
         <img
@@ -83,10 +70,10 @@ function ScreenFrame({ src, caption }: Screen) {
       </div>
       <figcaption
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 500,
           color: DIM,
-          letterSpacing: "0.04em",
+          letterSpacing: "0.06em",
           textTransform: "uppercase",
           fontFamily: WORK_SANS,
           marginTop: 12,
@@ -99,33 +86,122 @@ function ScreenFrame({ src, caption }: Screen) {
   );
 }
 
+// desktop: capped, centered row of mockups
+function MockupRow({ screens }: { screens: Screen[] }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 24,
+        marginTop: 40,
+        justifyContent: "flex-start",
+      }}
+    >
+      {screens.map((s) => (
+        <div key={s.src} style={{ flex: "0 1 240px", maxWidth: 260 }}>
+          <Mockup {...s} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// mobile: swipeable carousel of mockups
+function MockupCarousel({ screens }: { screens: Screen[] }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+
+  const onScroll = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setActive(Math.round(el.scrollLeft / el.clientWidth));
+  };
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div
+        ref={scrollerRef}
+        onScroll={onScroll}
+        style={{
+          display: "flex",
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          gap: 12,
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        {screens.map((s) => (
+          <div
+            key={s.src}
+            style={{
+              flex: "0 0 78%",
+              scrollSnapAlign: "center",
+              margin: "0 auto",
+            }}
+          >
+            <Mockup {...s} />
+          </div>
+        ))}
+      </div>
+
+      {screens.length > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", gap: 7, marginTop: 16 }}>
+          {screens.map((_, i) => (
+            <span
+              key={i}
+              style={{
+                width: i === active ? 20 : 6,
+                height: 6,
+                borderRadius: 999,
+                background: i === active ? ACCENT : "#404040",
+                transition: "width 0.25s ease, background 0.25s ease",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HackDavisDecisions() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   return (
     <div
       style={{
         width: "100%",
         background: BG,
         boxSizing: "border-box",
-        padding: "96px 48px 0",
+        padding: isMobile ? "64px 20px 0" : "96px 48px 0",
         display: "grid",
-        gridTemplateColumns: "280px minmax(0, 1fr)",
-        gap: 48,
+        gridTemplateColumns: isMobile ? "1fr" : "280px minmax(0, 1fr)",
+        gap: isMobile ? 0 : 48,
         alignItems: "start",
       }}
     >
-      {/* gutter — mirrors the sticky nav column */}
-      <div />
+      {!isMobile && <div />}
 
       <div style={{ width: "100%" }}>
-        {/* subsection under DESIGN — no section label here */}
         <div id="design-decisions">
           <h3
             style={{
-              fontSize: "clamp(22px, 2.2vw, 30px)",
-              fontWeight: 700,
+              fontSize: "clamp(20px, 1.9vw, 25px)",
+              fontWeight: 600,
               color: INK,
               letterSpacing: "-0.01em",
-              lineHeight: 1.2,
+              lineHeight: 1.3,
               margin: 0,
               fontFamily: MANROPE,
             }}
@@ -135,12 +211,12 @@ export default function HackDavisDecisions() {
 
           <p
             style={{
-              fontSize: 19,
+              fontSize: isMobile ? 17 : 18,
               fontWeight: 400,
               color: "#D4D4D4",
               lineHeight: 1.65,
-              margin: "20px 0 0 0",
-              maxWidth: 960,
+              margin: "24px 0 0 0",
+              maxWidth: 640,
               fontFamily: WORK_SANS,
             }}
           >
@@ -151,19 +227,19 @@ export default function HackDavisDecisions() {
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 112,
-              marginTop: 64,
+              gap: isMobile ? 72 : 112,
+              marginTop: isMobile ? 56 : 72,
             }}
           >
             {DECISIONS.map((d) => (
               <div key={d.title}>
                 <h4
                   style={{
-                    fontSize: "clamp(19px, 1.9vw, 25px)",
-                    fontWeight: 700,
+                    fontSize: "clamp(19px, 1.7vw, 22px)",
+                    fontWeight: 600,
                     color: INK,
                     letterSpacing: "-0.01em",
-                    lineHeight: 1.2,
+                    lineHeight: 1.3,
                     margin: 0,
                     fontFamily: MANROPE,
                   }}
@@ -173,37 +249,23 @@ export default function HackDavisDecisions() {
 
                 <p
                   style={{
-                    fontSize: 19,
+                    fontSize: isMobile ? 17 : 18,
                     fontWeight: 400,
                     color: "#D4D4D4",
                     lineHeight: 1.65,
                     margin: "16px 0 0 0",
-                    maxWidth: 800,
+                    maxWidth: 640,
                     fontFamily: WORK_SANS,
                   }}
                 >
                   {d.body}
                 </p>
 
-                {/* screens side by side — capped so 2 and 3 match */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 24,
-                    marginTop: 40,
-                    alignItems: "flex-start",
-                    justifyContent: "flex-start",
-                  }}
-                >
-                  {d.screens.map((s) => (
-                    <ScreenFrame
-                      key={s.src}
-                      src={s.src}
-                      caption={s.caption}
-                    />
-                  ))}
-                </div>
+                {isMobile ? (
+                  <MockupCarousel screens={d.screens} />
+                ) : (
+                  <MockupRow screens={d.screens} />
+                )}
               </div>
             ))}
           </div>

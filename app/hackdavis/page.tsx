@@ -7,6 +7,7 @@ import HackDavisDecisions from "../components/HackDavisDecisions";
 import HackDavisLive from "../components/HackDavisLive";
 import HackDavisImprovements from "../components/HackDavisImprovements";
 import HackDavisTakeaways from "../components/HackDavisTakeaways";
+import HackDavisMoreProjects from "../components/HackDavisMoreProjects";
 
 export default function HackDavisPage() {
   return (
@@ -20,6 +21,7 @@ export default function HackDavisPage() {
       <HackDavisLive />
       <HackDavisImprovements />
       <HackDavisTakeaways />
+      <HackDavisMoreProjects />
     </div>
   );
 }

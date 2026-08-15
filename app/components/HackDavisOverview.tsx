@@ -1,9 +1,15 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
 const CARD = "#1e1e1e";
 const LINE = "#2a2a2a";
 const FONT = "Manrope, sans-serif";
+
+const MOBILE_BREAKPOINT = 900;
 
 const D = {
   heading: "Overview",
@@ -86,6 +92,16 @@ function Card({
 }
 
 export default function HackDavisOverview() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   return (
     <div
       style={{
@@ -93,7 +109,7 @@ export default function HackDavisOverview() {
         background: BG,
         fontFamily: FONT,
         boxSizing: "border-box",
-        padding: "96px 48px",
+        padding: isMobile ? "64px 20px" : "96px 48px",
       }}
     >
       <h2
@@ -104,7 +120,7 @@ export default function HackDavisOverview() {
           letterSpacing: "-0.03em",
           lineHeight: 1,
           margin: "0 0 48px 0",
-          textAlign: "center",
+          textAlign: isMobile ? "left" : "center",
           fontFamily: FONT,
         }}
       >
@@ -124,7 +140,9 @@ export default function HackDavisOverview() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(300px, 1fr))",
             gap: 24,
           }}
         >

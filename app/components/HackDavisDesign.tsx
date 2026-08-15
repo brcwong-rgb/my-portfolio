@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
@@ -9,7 +11,8 @@ const ACCENT = "#CDFE88";
 const WORK_SANS = "'Work Sans', sans-serif";
 const MANROPE = "Manrope, sans-serif";
 
-// ---- content ----
+const MOBILE_BREAKPOINT = 900;
+
 const CONTENT = {
   sectionLabel: "DESIGN",
   headline: "User Flow",
@@ -26,8 +29,6 @@ const CONTENT = {
   branchLabel: "Report Missing Team",
   branchNote:
     "If nobody is at the table, judges flag the team as missing. It moves into a separate missing category so the round keeps moving and organizers can follow up.",
-  captionText: "Below is the full user flow",
-  flowImage: "/hackdavis-user-flow.png", // put this file in /public
 };
 
 function Chip({ label }: { label: string }) {
@@ -52,7 +53,7 @@ function Chip({ label }: { label: string }) {
   );
 }
 
-function Arrow() {
+function Arrow({ vertical }: { vertical: boolean }) {
   return (
     <span
       style={{
@@ -62,12 +63,22 @@ function Arrow() {
         userSelect: "none",
       }}
     >
-      →
+      {vertical ? "↓" : "→"}
     </span>
   );
 }
 
 export default function HackDavisDesign() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   return (
     <div
       id="design"
@@ -75,22 +86,21 @@ export default function HackDavisDesign() {
         width: "100%",
         background: BG,
         boxSizing: "border-box",
-        padding: "96px 48px 0",
+        padding: isMobile ? "64px 20px 0" : "96px 48px 0",
         display: "grid",
-        gridTemplateColumns: "280px minmax(0, 1fr)",
-        gap: 48,
+        gridTemplateColumns: isMobile ? "1fr" : "280px minmax(0, 1fr)",
+        gap: isMobile ? 0 : 48,
         alignItems: "start",
       }}
     >
-      {/* gutter — mirrors the sticky nav column */}
-      <div />
+      {!isMobile && <div />}
 
       <div style={{ width: "100%" }}>
         <div id="user-flow">
           <span
             style={{
               display: "block",
-              fontSize: 22,
+              fontSize: isMobile ? 18 : 22,
               fontWeight: 400,
               color: INK,
               letterSpacing: "0.06em",
@@ -119,11 +129,11 @@ export default function HackDavisDesign() {
 
           <p
             style={{
-              fontSize: 19,
+              fontSize: isMobile ? 17 : 19,
               fontWeight: 400,
               color: "#D4D4D4",
               lineHeight: 1.65,
-              margin: "48px 0 0 0",
+              margin: isMobile ? "24px 0 0 0" : "48px 0 0 0",
               maxWidth: 960,
               fontFamily: WORK_SANS,
             }}
@@ -136,14 +146,15 @@ export default function HackDavisDesign() {
           </p>
 
           {/* ---- the flow ---- */}
-          <div style={{ marginTop: 56 }}>
-            {/* main path */}
+          <div style={{ marginTop: isMobile ? 40 : 56 }}>
+            {/* main path — horizontal on desktop, stacked vertical on mobile */}
             <div
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: "14px 12px",
+                flexDirection: isMobile ? "column" : "row",
+                flexWrap: isMobile ? "nowrap" : "wrap",
+                alignItems: isMobile ? "flex-start" : "center",
+                gap: isMobile ? 12 : "14px 12px",
               }}
             >
               {CONTENT.steps.map((step, i) => (
@@ -151,17 +162,20 @@ export default function HackDavisDesign() {
                   key={step}
                   style={{
                     display: "inline-flex",
-                    alignItems: "center",
+                    flexDirection: isMobile ? "column" : "row",
+                    alignItems: isMobile ? "flex-start" : "center",
                     gap: 12,
                   }}
                 >
                   <Chip label={step} />
-                  {i < CONTENT.steps.length - 1 ? <Arrow /> : null}
+                  {i < CONTENT.steps.length - 1 ? (
+                    <Arrow vertical={isMobile} />
+                  ) : null}
                 </span>
               ))}
             </div>
 
-            {/* branch — its own row, clearly nested under the flow */}
+            {/* branch — exception path */}
             <div
               style={{
                 marginTop: 32,
@@ -216,7 +230,7 @@ export default function HackDavisDesign() {
 
               <span
                 style={{
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 16,
                   fontWeight: 400,
                   color: DIM,
                   lineHeight: 1.6,
@@ -227,44 +241,6 @@ export default function HackDavisDesign() {
                 {CONTENT.branchNote}
               </span>
             </div>
-          </div>
-
-          {/* caption + flow diagram */}
-          <p
-            style={{
-              fontSize: 19,
-              fontWeight: 400,
-              color: DIM,
-              lineHeight: 1.65,
-              margin: "64px 0 0 0",
-              maxWidth: 960,
-              fontFamily: WORK_SANS,
-            }}
-          >
-            {CONTENT.captionText}
-          </p>
-
-          <div
-            style={{
-              marginTop: 24,
-              width: "100%",
-              background: CARD,
-              border: `0.5px solid ${LINE}`,
-              borderRadius: 4,
-              overflow: "hidden",
-              padding: 24,
-              boxSizing: "border-box",
-            }}
-          >
-            <img
-              src={CONTENT.flowImage}
-              alt="HackDavis judging app user flow"
-              style={{
-                width: "100%",
-                height: "auto",
-                display: "block",
-              }}
-            />
           </div>
         </div>
       </div>

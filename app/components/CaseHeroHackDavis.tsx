@@ -1,8 +1,12 @@
-import React from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
+
+const MOBILE_BREAKPOINT = 900;
 
 const D = {
   title: "HackDavis",
@@ -15,8 +19,18 @@ const D = {
 };
 
 export default function CaseHeroHackDavis() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const labelStyle: React.CSSProperties = {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 500,
     color: DIM,
     display: "block",
@@ -25,7 +39,7 @@ export default function CaseHeroHackDavis() {
   };
 
   const valueStyle: React.CSSProperties = {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 500,
     color: INK,
     lineHeight: 1.4,
@@ -37,12 +51,12 @@ export default function CaseHeroHackDavis() {
         width: "100%",
         background: BG,
         boxSizing: "border-box",
-        padding: "128px 48px 80px",
+        padding: isMobile ? "112px 20px 56px" : "128px 48px 80px",
       }}
     >
       <h1
         style={{
-          fontSize: 42,
+          fontSize: isMobile ? "clamp(32px, 9vw, 42px)" : 42,
           fontWeight: 600,
           color: INK,
           letterSpacing: "-0.02em",
@@ -55,11 +69,11 @@ export default function CaseHeroHackDavis() {
 
       <p
         style={{
-          fontSize: 32,
+          fontSize: isMobile ? "clamp(20px, 5.5vw, 26px)" : 32,
           fontWeight: 500,
           color: DIM,
           letterSpacing: "-0.01em",
-          lineHeight: 1.2,
+          lineHeight: 1.25,
           margin: "12px 0 0 0",
         }}
       >
@@ -69,9 +83,11 @@ export default function CaseHeroHackDavis() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 32,
-          marginTop: 64,
+          gridTemplateColumns: isMobile
+            ? "1fr 1fr"
+            : "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: isMobile ? "28px 20px" : 32,
+          marginTop: isMobile ? 48 : 64,
         }}
       >
         <div>
