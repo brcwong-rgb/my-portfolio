@@ -27,7 +27,7 @@ export default function HackDavisPage() {
         <HackDavisTakeaways />
         <HackDavisMoreProjects />
       </div>
-      <Ending showBackToTop={false} />
+      <Ending />
     </div>
   );
 }

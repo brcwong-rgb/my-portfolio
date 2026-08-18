@@ -30,7 +30,7 @@ export default function TreevahPage() {
         }
       />
       <MoreProjects exclude="treevah" />
-      <Ending showBackToTop={false} />
+      <Ending />
     </div>
   );
 }
