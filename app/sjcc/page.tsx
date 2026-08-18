@@ -26,7 +26,7 @@ export default function SJCCPage() {
         }
       />
       <MoreProjects exclude="sjcc" />
-      <Ending showBackToTop={false} />
+      <Ending />
     </div>
   );
 }

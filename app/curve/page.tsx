@@ -9,7 +9,7 @@ export default function CurvePage() {
       <Nav />
       <CaseHeroCurve />
       <MoreProjects exclude="curve" />
-      <Ending showBackToTop={false} />
+      <Ending />
     </div>
   );
 }
