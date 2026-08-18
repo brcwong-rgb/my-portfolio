@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Work_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${manrope.className} ${workSans.variable}`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
