@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import ContactReceipt from "./ContactReceipt";
@@ -9,13 +10,34 @@ const LINKEDIN_URL = "https://www.linkedin.com/in/brandon-wong-43449827a/";
 const RESUME_URL = "/brandon-wong-resume.pdf";
 const MOBILE_BREAKPOINT = 900;
 
+// case-study routes — the dropdown only appears on these pages
+const PROJECTS = [
+  { key: "curve", label: "Curve Biosciences", href: "/curve" },
+  { key: "hackdavis", label: "HackDavis", href: "/hackdavis" },
+  { key: "treevah", label: "Treevah", href: "/treevah" },
+  { key: "sjcc", label: "San Jose City College", href: "/sjcc" },
+];
+const PROJECT_ROUTES = PROJECTS.map((p) => p.href);
+
 export default function Nav() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<"home" | "projects">("home");
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
+
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const onCaseStudy = PROJECT_ROUTES.includes(pathname);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
@@ -54,6 +76,44 @@ export default function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
+
+  const measure = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ left: r.left, top: r.bottom });
+  }, []);
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    measure();
+    const onResize = () => measure();
+    const onScroll = () => measure();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [projectsOpen, measure]);
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setProjectsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [projectsOpen]);
+
   const scrollToId = (id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -76,24 +136,17 @@ export default function Nav() {
   };
 
   const openExternal = (url: string) => {
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleAction = (link: { type: string; target: string }) => {
-    if (link.type === "home") {
-      goHome();
-    } else if (link.type === "section") {
-      goToSection(link.target);
-    } else if (link.type === "page") {
-      router.push(link.target);
-    } else if (link.type === "external") {
-      openExternal(link.target);
-    } else if (link.type === "contact") {
-      window.dispatchEvent(new Event("open-contact"));
-    }
+    if (link.type === "home") goHome();
+    else if (link.type === "section") goToSection(link.target);
+    else if (link.type === "page") router.push(link.target);
+    else if (link.type === "external") openExternal(link.target);
+    else if (link.type === "contact") window.dispatchEvent(new Event("open-contact"));
     setMenuOpen(false);
+    setProjectsOpen(false);
   };
 
   const row1 = [
@@ -142,12 +195,62 @@ export default function Nav() {
     };
   };
 
+  const openProjects = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    measure();
+    setProjectsOpen(true);
+  };
+  const scheduleCloseProjects = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setProjectsOpen(false), 160);
+  };
+
   const renderLink = (link: { label: string; type: string; target: string }) => {
     const hoverProps = {
       onMouseEnter: () => setHoveredLink(link.label),
       onMouseLeave: () => setHoveredLink(null),
       style: linkStyle(link),
     };
+
+    // Projects: dropdown ONLY on case-study pages. Kept inline so it aligns with the other links.
+    if (link.type === "section" && link.target === "projects" && onCaseStudy) {
+      return (
+        <span
+          key={link.label}
+          ref={triggerRef}
+          role="button"
+          tabIndex={0}
+          aria-haspopup="menu"
+          aria-expanded={projectsOpen}
+          onMouseEnter={() => {
+            setHoveredLink(link.label);
+            openProjects();
+          }}
+          onMouseLeave={() => {
+            setHoveredLink(null);
+            scheduleCloseProjects();
+          }}
+          onClick={() => handleAction(link)}
+          onFocus={openProjects}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleAction(link);
+            } else if (e.key === "ArrowDown") {
+              e.preventDefault();
+              openProjects();
+              requestAnimationFrame(() => {
+                const first = panelRef.current?.querySelector<HTMLElement>("[data-menuitem]");
+                first?.focus();
+              });
+            }
+          }}
+          style={linkStyle(link)}
+        >
+          {link.label}
+        </span>
+      );
+    }
 
     if (link.type === "page") {
       return (
@@ -164,7 +267,95 @@ export default function Nav() {
     );
   };
 
-  // shared frost backing layer
+  // Minimal dropdown — just the four names, portaled out of the blend-mode nav
+  const projectsPortal =
+    mounted && onCaseStudy && coords
+      ? createPortal(
+          <div
+            ref={panelRef}
+            role="menu"
+            aria-label="Projects"
+            onMouseEnter={openProjects}
+            onMouseLeave={scheduleCloseProjects}
+            style={{
+              position: "fixed",
+              top: coords.top + 12,
+              left: coords.left,
+              minWidth: 200,
+              background: "rgba(20,20,20,0.88)",
+              backdropFilter: "blur(16px) saturate(140%)",
+              WebkitBackdropFilter: "blur(16px) saturate(140%)",
+              border: "0.5px solid #2e2e2e",
+              borderRadius: 12,
+              padding: 5,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.55)",
+              opacity: projectsOpen ? 1 : 0,
+              transform: projectsOpen ? "translateY(0)" : "translateY(-6px)",
+              pointerEvents: projectsOpen ? "auto" : "none",
+              transition: "opacity 0.2s ease, transform 0.3s cubic-bezier(0.16,1,0.3,1)",
+              fontFamily: "Manrope, sans-serif",
+              zIndex: 9999,
+            }}
+          >
+            {PROJECTS.map((p) => {
+              const current = pathname === p.href;
+
+              if (current) {
+                return (
+                  <div
+                    key={p.key}
+                    role="menuitem"
+                    aria-current="page"
+                    aria-disabled="true"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      letterSpacing: "-0.01em",
+                      color: "#5c5c5c",
+                      padding: "9px 12px",
+                      cursor: "default",
+                    }}
+                  >
+                    {p.label}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={p.key}
+                  href={p.href}
+                  role="menuitem"
+                  data-menuitem
+                  onClick={() => setProjectsOpen(false)}
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                    color: "#FAFAFA",
+                    textDecoration: "none",
+                    padding: "9px 12px",
+                    borderRadius: 8,
+                    transition: "background 0.16s ease",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {p.label}
+                </Link>
+              );
+            })}
+          </div>,
+          document.body
+        )
+      : null;
+
   const frostLayer = (
     <div
       style={{
@@ -189,7 +380,6 @@ export default function Nav() {
   if (isMobile) {
     return (
       <>
-        {/* frost sits behind the bar, only when the menu is closed */}
         {!menuOpen && frostLayer}
 
         <div
@@ -240,7 +430,6 @@ export default function Nav() {
           </button>
         </div>
 
-        {/* full-screen overlay */}
         <div
           style={{
             position: "fixed",
@@ -281,14 +470,7 @@ export default function Nav() {
             </button>
           ))}
 
-          <div
-            style={{
-              marginTop: 36,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <div style={{ marginTop: 36, display: "flex", alignItems: "center", gap: 8 }}>
             <span
               style={{
                 width: 7,
@@ -407,6 +589,8 @@ export default function Nav() {
 
         <style>{`@keyframes ping { 0% { transform: scale(1); opacity: 0.6; } 75%, 100% { transform: scale(2.5); opacity: 0; } }`}</style>
       </div>
+
+      {projectsPortal}
 
       <ContactReceipt />
     </>

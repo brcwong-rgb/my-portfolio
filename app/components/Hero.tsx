@@ -11,19 +11,21 @@ const TAGLINE_MIN = 22;
 const TAGLINE_MAX = 80;
 const TAGLINE_SCALE = 0.7;
 
-// ── ENTRANCE TIMELINE (all times in seconds, keyed off `entered`) ──
-const START_EVENT = "site:loaded";   // dispatch this from your preloader when it finishes
-const FALLBACK_MS = 1500;            // safety net if the event never arrives (raise if preloader runs longer)
-const EASE = "cubic-bezier(0.16, 1, 0.3, 1)"; // expo-out — the "expensive" curve
+// ── ENTRANCE TIMELINE ──
+const START_EVENT = "site:loaded";
+const FALLBACK_MS = 1500;
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 
-const NAME_DUR = 0.8;         // per-letter rise duration
-const NAME_STAGGER = 0.055;   // gap between each letter
-const TAGLINE_DELAY = 0.4;    // tagline starts after name is underway
+const NAME_DUR = 0.8;
+const NAME_STAGGER = 0.055;
+const TAGLINE_DELAY = 0.4;
 const TAGLINE_DUR = 0.9;
-const HIGHLIGHT_DELAY = 1.0;  // underlines draw after tagline lands
+const HIGHLIGHT_DELAY = 1.0;
 const HIGHLIGHT_STAGGER = 0.14;
-const CTA_DELAY = 0.85;       // CTA is last in
+const CTA_DELAY = 0.85;
 const CTA_DUR = 0.75;
+
+const ACCENT = "#CDFE88";
 
 export default function Hero({
   name = "brandon",
@@ -54,7 +56,6 @@ export default function Hero({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const attemptsRef = useRef(0);
 
-  // ── ENTRANCE TRIGGER: fire on preloader event, with a safety fallback ──
   useEffect(() => {
     let fired = false;
     const go = () => {
@@ -264,61 +265,114 @@ export default function Hero({
     </button>
   );
 
-  // MOBILE CTA — bold solid green pill with down arrow
+  // MOBILE CTA — editorial "scroll to enter" cue: centered label over a tall
+  // self-drawing line with a green pulse traveling down it. No box.
   const mobileCta = (
-    <button
+    <div
       onClick={scrollToProjects}
+      role="button"
+      tabIndex={0}
+      aria-label={ctaText}
       style={{
-        display: "inline-flex",
+        display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        gap: 10,
-        background: "#CDFE88",
-        border: "none",
-        borderRadius: 999,
+        gap: 20,
+        margin: "12px auto 40px",
         cursor: "pointer",
-        padding: "14px 24px",
-        marginBottom: 44,
-        // entrance
+        WebkitTapHighlightColor: "transparent",
         opacity: entered ? 1 : 0,
         transform: entered ? "translateY(0)" : "translateY(16px)",
         transition: `opacity ${CTA_DUR}s ${EASE} ${CTA_DELAY}s, transform ${CTA_DUR}s ${EASE} ${CTA_DELAY}s`,
         willChange: "opacity, transform",
-        WebkitTapHighlightColor: "transparent",
       }}
     >
       <span
         style={{
-          fontSize: 16,
-          fontWeight: 700,
-          letterSpacing: "-0.01em",
-          color: "#121212",
+          fontSize: 13,
+          fontWeight: 600,
+          letterSpacing: "0.22em",
+          textTransform: "uppercase",
+          color: "#FAFAFA",
         }}
       >
         {ctaText}
       </span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#121212"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+
+      {/* tall vertical track that draws itself, with a green pulse dropping down */}
+      <span
         style={{
-          width: 16,
-          height: 16,
-          animation: "heroPillBob 1.6s ease-in-out infinite",
+          position: "relative",
+          display: "block",
+          width: 2,
+          height: 72,
+          flexShrink: 0,
         }}
       >
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <polyline points="19 12 12 19 5 12" />
-      </svg>
+        {/* the static hairline — scales in from the top on entrance */}
+        <span
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: 0,
+            width: 1,
+            height: "100%",
+            marginLeft: -0.5,
+            background: "rgba(250,250,250,0.28)",
+            transformOrigin: "top",
+            transform: entered ? "scaleY(1)" : "scaleY(0)",
+            transition: `transform 0.9s ${EASE} ${CTA_DELAY + 0.2}s`,
+          }}
+        />
+        {/* the green pulse traveling down the track (delay folded into shorthand) */}
+        <span
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: 0,
+            width: 6,
+            height: 6,
+            marginLeft: -3,
+            borderRadius: "50%",
+            background: ACCENT,
+            boxShadow: `0 0 10px ${ACCENT}`,
+            animation: entered
+              ? `heroPulse 2s cubic-bezier(0.65,0,0.35,1) ${CTA_DELAY + 0.9}s infinite`
+              : "none",
+          }}
+        />
+        {/* arrowhead anchored at the bottom of the track */}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#FAFAFA"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            position: "absolute",
+            left: "50%",
+            bottom: -9,
+            width: 16,
+            height: 16,
+            marginLeft: -8,
+            opacity: entered ? 0.85 : 0,
+            transition: `opacity 0.6s ease ${CTA_DELAY + 0.7}s`,
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </span>
+
       <style>{`
-        @keyframes heroPillBob {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(3px); }
+        @keyframes heroPulse {
+          0%   { transform: translateY(0); opacity: 0; }
+          15%  { opacity: 1; }
+          80%  { opacity: 1; }
+          100% { transform: translateY(66px); opacity: 0; }
         }
       `}</style>
-    </button>
+    </div>
   );
 
   return (
@@ -389,7 +443,6 @@ export default function Hero({
           boxSizing: "border-box",
           padding: isMobile ? `${TAGLINE_GAP}px 0 28px 0` : "16px 0 24px 0",
           fontSize: isMobile ? taglineSize : "clamp(28px, 4.6vw, 80px)",
-          // entrance (vertical-only transform keeps the auto-fit measurement valid)
           opacity: entered ? 1 : 0,
           transform: entered ? "translateY(0)" : "translateY(22px)",
           transition: `opacity ${TAGLINE_DUR}s ${EASE} ${TAGLINE_DELAY}s, transform ${TAGLINE_DUR}s ${EASE} ${TAGLINE_DELAY}s`,

@@ -1,23 +1,27 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const INK = "#FAFAFA";
 const DIM = "#757575";
 const BG = "#121212";
 const CARD = "#1e1e1e";
 const LINE = "#2a2a2a";
-const ACCENT = "#CDFE88";
 const WORK_SANS = "var(--font-work-sans), sans-serif";
 
+const MOBILE_BREAKPOINT = 900;
 const NAV_TOP = 120;
 const SPY_LINE = 200;
 
-const TOC = [
+type Sub = { label: string; id: string };
+type Group = { group: string; id: string; subs: Sub[] };
+
+const TOC: Group[] = [
   {
     group: "Preproduction Planning",
     id: "preproduction",
-    items: [
+    subs: [
       { label: "How Might We...", id: "how-might-we" },
       { label: "Shot List", id: "shot-list" },
     ],
@@ -25,26 +29,19 @@ const TOC = [
   {
     group: "Production",
     id: "production",
-    items: [
+    subs: [
       { label: "Footage list", id: "footage-list" },
       { label: "Draft #1", id: "draft-1" },
       { label: "Client Feedback", id: "client-feedback" },
     ],
   },
-  { group: "Final Design", id: "final-design", items: [] },
-  { group: "Reflection", id: "reflection", items: [] },
+  { group: "Final Design", id: "final-design", subs: [] },
+  { group: "Reflection", id: "reflection", subs: [] },
 ];
 
-const SPY_TARGETS: { id: string; group: string }[] = [];
-TOC.forEach((section) => {
-  SPY_TARGETS.push({ id: section.id, group: section.id });
-  section.items.forEach((item) => {
-    SPY_TARGETS.push({ id: item.id, group: section.id });
-  });
-});
-
-function getAllById(id: string): Element[] {
-  return Array.from(document.querySelectorAll('[id="' + id + '"]'));
+function getEl(id: string): Element | null {
+  const els = document.querySelectorAll('[id="' + id + '"]');
+  return els.length > 0 ? els[els.length - 1] : null;
 }
 
 function renderBold(text: string) {
@@ -88,44 +85,76 @@ export default function CaseBodyLayout({
   content?: React.ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [navVisible, setNavVisible] = useState(false);
-  const [activeId, setActiveId] = useState("");
   const [activeGroup, setActiveGroup] = useState("");
+  const [activeSub, setActiveSub] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const check = () => {
-      const start = containerRef.current;
-      if (!start) return;
+      // Nav visible from the first section until the last section scrolls past.
+      let visible = false;
+      const firstEl = getEl("preproduction");
+      const lastEl = getEl("reflection");
+      if (firstEl && lastEl) {
+        const started = firstEl.getBoundingClientRect().top - NAV_TOP - 20 <= 0;
+        const ended = lastEl.getBoundingClientRect().bottom - NAV_TOP <= 0;
+        visible = started && !ended;
+      }
+      setNavVisible(visible);
 
-      const startTop = start.getBoundingClientRect().top;
-      setNavVisible(startTop - NAV_TOP - 20 <= 0);
+      // ---- DEBUG: remove after we diagnose ----
+      console.log(
+        "VIS:", visible,
+        "| first top:", firstEl ? Math.round(firstEl.getBoundingClientRect().top) : "MISSING",
+        "| reflection bottom:", lastEl ? Math.round(lastEl.getBoundingClientRect().bottom) : "MISSING"
+      );
+      // -----------------------------------------
 
-      let currentId = "";
-      let currentGroup = "";
-      for (const target of SPY_TARGETS) {
-        const els = getAllById(target.id);
-        for (const el of els) {
-          if (el.getBoundingClientRect().top - SPY_LINE <= 0) {
-            currentId = target.id;
-            currentGroup = target.group;
-            break;
-          }
+      let g = "";
+      for (const section of TOC) {
+        const el = getEl(section.id);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top - SPY_LINE <= 0) g = section.id;
+      }
+      setActiveGroup(g);
+
+      let s = "";
+      for (const section of TOC) {
+        for (const sub of section.subs) {
+          const el = getEl(sub.id);
+          if (!el) continue;
+          if (el.getBoundingClientRect().top - SPY_LINE <= 0) s = sub.id;
         }
       }
+      setActiveSub(s);
 
-      // If we're at (or near) the bottom of the page, force-select the last
-      // target — short final sections can't reach the reading line.
-      const scrolledToBottom =
-        window.innerHeight + window.scrollY >= document.body.offsetHeight - 2;
-      if (scrolledToBottom) {
-        const last = SPY_TARGETS[SPY_TARGETS.length - 1];
-        currentId = last.id;
-        currentGroup = last.group;
+      const gi = TOC.findIndex((t) => t.id === g);
+      let prog = 0;
+      if (gi !== -1) {
+        const curEl = getEl(TOC[gi].id);
+        const nextEl = gi + 1 < TOC.length ? getEl(TOC[gi + 1].id) : null;
+        if (curEl && nextEl) {
+          const a = curEl.getBoundingClientRect().top;
+          const b = nextEl.getBoundingClientRect().top;
+          if (b > a) prog = Math.max(0, Math.min(1, (SPY_LINE - a) / (b - a)));
+        }
       }
-
-      setActiveId(currentId);
-      setActiveGroup(currentGroup);
+      setProgress(prog);
     };
+
     check();
     window.addEventListener("scroll", check, { passive: true });
     window.addEventListener("resize", check, { passive: true });
@@ -136,18 +165,140 @@ export default function CaseBodyLayout({
   }, []);
 
   const scrollTo = (id: string) => {
-    const els = getAllById(id);
-    if (els.length > 0) {
-      els[els.length - 1].scrollIntoView({ behavior: "smooth" });
-    }
+    const el = getEl(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
-  let lineIndex = 0;
-  const lineStyle = (): React.CSSProperties => {
-    const delay = lineIndex * 0.08;
-    lineIndex += 1;
-    return { animation: "tocLineIn 0.5s cubic-bezier(0.16,1,0.3,1) " + delay + "s both" };
-  };
+  const nav =
+    mounted && navVisible && !isMobile
+      ? createPortal(
+          <nav
+            style={{
+              position: "fixed",
+              top: NAV_TOP,
+              left: 48,
+              width: 240,
+              boxSizing: "border-box",
+              padding: "22px 22px",
+              borderRadius: 16,
+              border: `0.5px solid ${LINE}`,
+              background: "rgba(24,24,24,0.55)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              fontFamily: WORK_SANS,
+              zIndex: 90,
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {TOC.map((section, i) => {
+                const groupActive = activeGroup === section.id;
+                const hasSubs = section.subs.length > 0;
+                const fill = groupActive ? progress : 0;
+                return (
+                  <div
+                    key={section.group}
+                    style={{
+                      animation: "sjNavIn 0.5s cubic-bezier(0.16,1,0.3,1) both",
+                      animationDelay: `${i * 0.08}s`,
+                    }}
+                  >
+                    <span
+                      onClick={() => scrollTo(section.id)}
+                      style={{
+                        display: "block",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: groupActive ? INK : DIM,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                        transition: "color 0.3s ease",
+                      }}
+                    >
+                      {section.group}
+                    </span>
+
+                    <div
+                      style={{
+                        overflow: "hidden",
+                        maxHeight: groupActive ? 200 : 0,
+                        opacity: groupActive ? 1 : 0,
+                        transition:
+                          "max-height 0.45s cubic-bezier(0.16,1,0.3,1), opacity 0.35s ease",
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: "relative",
+                          paddingTop: hasSubs ? 14 : 0,
+                          paddingLeft: 14,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 11,
+                        }}
+                      >
+                        {hasSubs && (
+                          <>
+                            <span
+                              style={{
+                                position: "absolute",
+                                left: 0,
+                                top: 14,
+                                bottom: 0,
+                                width: 1,
+                                background: LINE,
+                              }}
+                            />
+                            <span
+                              style={{
+                                position: "absolute",
+                                left: 0,
+                                top: 14,
+                                width: 1,
+                                height: `calc((100% - 14px) * ${fill})`,
+                                background: INK,
+                                transition: "height 0.12s linear",
+                              }}
+                            />
+                          </>
+                        )}
+
+                        {section.subs.map((sub) => {
+                          const subActive = activeSub === sub.id;
+                          return (
+                            <span
+                              key={sub.id}
+                              onClick={() => scrollTo(sub.id)}
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: subActive ? INK : DIM,
+                                letterSpacing: "0.02em",
+                                cursor: "pointer",
+                                transition: "color 0.3s ease",
+                              }}
+                            >
+                              {sub.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <style>{`
+              @keyframes sjNavIn {
+                from { opacity: 0; transform: translateY(8px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+            `}</style>
+          </nav>,
+          document.body
+        )
+      : null;
 
   return (
     <div
@@ -157,44 +308,26 @@ export default function CaseBodyLayout({
         width: "100%",
         background: BG,
         boxSizing: "border-box",
-        padding: "96px 48px",
-        display: "grid",
-        gridTemplateColumns: "280px minmax(0, 1fr)",
-        gap: 48,
-        alignItems: "start",
+        padding: isMobile ? "72px 20px" : "96px 48px",
       }}
     >
-      <style>{`@keyframes tocLineIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0px); } }`}</style>
+      {nav}
 
-      {navVisible ? (
-        <nav style={{ position: "fixed", top: NAV_TOP, left: 48, width: 280, display: "flex", flexDirection: "column", gap: 32, fontFamily: WORK_SANS, zIndex: 90 }}>
-          {TOC.map((section) => {
-            const groupActive = activeGroup === section.id;
-            return (
-              <div key={section.group}>
-                <span onClick={() => scrollTo(section.id)} style={{ display: "block", fontSize: 13, fontWeight: 600, color: groupActive ? ACCENT : INK, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: section.items.length > 0 ? 12 : 0, cursor: "pointer", transition: "color 0.25s ease", ...lineStyle() }}>{section.group}</span>
-                {section.items.map((item) => {
-                  const itemActive = activeId === item.id;
-                  return (
-                    <span key={item.id} onClick={() => scrollTo(item.id)} style={{ display: "block", fontSize: 15, fontWeight: itemActive ? 500 : 400, color: itemActive ? ACCENT : DIM, lineHeight: 1.9, cursor: "pointer", transition: "color 0.25s ease", ...lineStyle() }}>{item.label}</span>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </nav>
-      ) : null}
-
-      <div />
-
-      <div style={{ width: "100%" }}>
+      <div
+        style={{
+          maxWidth: isMobile ? "100%" : 820,
+          marginLeft: isMobile ? 0 : 312,
+          marginRight: "auto",
+          width: "100%",
+        }}
+      >
         <div id="how-might-we">
-          <span style={{ display: "block", fontSize: 22, fontWeight: 400, color: INK, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: WORK_SANS, marginBottom: 16 }}>{D.sectionLabel}</span>
+          <span style={{ display: "block", fontSize: isMobile ? 16 : 22, fontWeight: 400, color: INK, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: WORK_SANS, marginBottom: 16 }}>{D.sectionLabel}</span>
           <h2 style={{ fontSize: "clamp(24px, 2.4vw, 36px)", fontWeight: 700, color: INK, letterSpacing: "-0.01em", lineHeight: 1.35, margin: 0, maxWidth: 1000 }}>{D.headline}</h2>
           <p style={{ fontSize: 19, fontWeight: 400, color: "#D4D4D4", lineHeight: 1.65, margin: "48px 0 0 0", maxWidth: 960, fontFamily: WORK_SANS }}>{renderBold(D.body)}</p>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "16px 20px", maxWidth: 980, margin: "80px auto 0" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "flex-start", gap: "16px 20px", maxWidth: 980, margin: isMobile ? "56px 0 0" : "80px 0 0" }}>
           <Term label={D.goal1} dotColor="#635D9B" />
           <Operator>+</Operator>
           <Term label={D.goal2} dotColor="#F8F9FA" />

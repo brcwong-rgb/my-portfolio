@@ -8,6 +8,8 @@ import IterationSection from "../components/IterationSection";
 import FinalDesignSection from "../components/FinalDesignSection";
 import DesignHighlights from "../components/DesignHighlights";
 import TreevahReflection from "../components/TreevahReflection";
+import MoreProjects from "../components/MoreProjects";
+import Ending from "../components/Ending";
 
 export default function TreevahPage() {
   return (
@@ -27,6 +29,8 @@ export default function TreevahPage() {
           </>
         }
       />
+      <MoreProjects exclude="treevah" />
+      <Ending showBackToTop={false} />
     </div>
   );
 }

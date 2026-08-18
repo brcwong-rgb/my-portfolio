@@ -14,12 +14,20 @@ const MANROPE = "Manrope, sans-serif";
 const MOBILE_BREAKPOINT = 900;
 
 type Screen = { src: string; caption: string };
-type Decision = { title: string; body: string; screens: Screen[] };
+type Decision = {
+  title: string;
+  problem: string;
+  solution: string;
+  body: string;
+  screens: Screen[];
+};
 
 const DECISIONS: Decision[] = [
   {
     title: "Flagging a missing team",
-    body: "Judges arrive at tables where nobody is there. Instead of stalling the round, they can flag the team as missing. It moves into a separate missing category so organizers can follow up and the judge keeps moving.",
+    problem: "Judges arrived at empty tables and stalled.",
+    solution: "Flag the team as missing and keep moving.",
+    body: "Instead of stalling the round, judges flag an empty table as missing. It moves to a separate category so organizers can follow up.",
     screens: [
       { src: "/hackdavis-missing-1.png", caption: "Empty table" },
       { src: "/hackdavis-missing-2.png", caption: "Flag as missing" },
@@ -28,21 +36,71 @@ const DECISIONS: Decision[] = [
   },
   {
     title: "A venue map",
-    body: "Judges from the previous year said they could not find the tables. The map is on the home screen and expands to a full view.",
+    problem: "Last year, judges couldn't find the tables.",
+    solution: "A map on the home screen, expandable to full view.",
+    body: "The map sits on the home screen and expands when judges need a closer look.",
     screens: [
       { src: "/hackdavis-map-1.png", caption: "Map on the home screen" },
       { src: "/hackdavis-map-2.png", caption: "Expanded map view" },
     ],
   },
   {
-    title: "Knowing when you are done",
-    body: "The previous year's app left judges unsure whether they had finished judging all their assigned projects. Now the unjudged list ends with a clear done state, and a scored section keeps track of all completed projects.",
+    title: "Knowing when you're done",
+    problem: "Judges were unsure if they'd finished.",
+    solution: "A clear done state and a scored list.",
+    body: "The unjudged list ends with a clear done state, and a scored section confirms what's complete.",
     screens: [
       { src: "/hackdavis-done-1.png", caption: "You're done" },
       { src: "/hackdavis-done-2.png", caption: "Scored projects" },
     ],
   },
 ];
+
+function ProblemSolution({ problem, solution }: { problem: string; solution: string }) {
+  const row: React.CSSProperties = {
+    display: "flex",
+    gap: 12,
+    alignItems: "baseline",
+  };
+  const tag = (accent: boolean): React.CSSProperties => ({
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    fontFamily: WORK_SANS,
+    color: accent ? ACCENT : DIM,
+    flexShrink: 0,
+    width: 72,
+  });
+  const text: React.CSSProperties = {
+    fontSize: 15,
+    fontWeight: 400,
+    color: "#D4D4D4",
+    lineHeight: 1.5,
+    fontFamily: WORK_SANS,
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        marginTop: 20,
+        paddingLeft: 16,
+        borderLeft: `2px solid ${LINE}`,
+      }}
+    >
+      <div style={row}>
+        <span style={tag(false)}>Problem</span>
+        <span style={text}>{problem}</span>
+      </div>
+      <div style={row}>
+        <span style={tag(true)}>Solution</span>
+        <span style={text}>{solution}</span>
+      </div>
+    </div>
+  );
+}
 
 function Mockup({ src, caption }: Screen) {
   return (
@@ -86,7 +144,6 @@ function Mockup({ src, caption }: Screen) {
   );
 }
 
-// desktop: capped, centered row of mockups
 function MockupRow({ screens }: { screens: Screen[] }) {
   return (
     <div
@@ -107,7 +164,6 @@ function MockupRow({ screens }: { screens: Screen[] }) {
   );
 }
 
-// mobile: swipeable carousel of mockups
 function MockupCarousel({ screens }: { screens: Screen[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
@@ -247,13 +303,15 @@ export default function HackDavisDecisions() {
                   {d.title}
                 </h4>
 
+                <ProblemSolution problem={d.problem} solution={d.solution} />
+
                 <p
                   style={{
                     fontSize: isMobile ? 17 : 18,
                     fontWeight: 400,
                     color: "#D4D4D4",
                     lineHeight: 1.65,
-                    margin: "16px 0 0 0",
+                    margin: "24px 0 0 0",
                     maxWidth: 640,
                     fontFamily: WORK_SANS,
                   }}

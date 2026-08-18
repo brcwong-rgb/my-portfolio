@@ -76,22 +76,65 @@ export default function Ending() {
         background: "#121212",
         borderTop: "1px solid #404040",
         boxSizing: "border-box",
-        padding: "48px 48px 72px",
+        padding: "96px 48px 72px",
         minHeight: 420,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
       }}
     >
-      {/* TOP ROW — Back to top (top-left) + Social header (top-right) */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#757575",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            marginBottom: 18,
+          }}
+        >
+          (SOCIAL)
+        </span>
+
+        {links.map((link) => (
+          <span
+            key={link.label}
+            onClick={() => openLink(link)}
+            onMouseEnter={() => setHovered(link.label)}
+            onMouseLeave={() => setHovered(null)}
+            style={linkStyle(link.label)}
+          >
+            {link.label}
+          </span>
+        ))}
+      </div>
+
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-start",
+          alignItems: "flex-end",
+          marginTop: 80,
         }}
       >
-        {/* back to top — top left */}
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#757575",
+            letterSpacing: "0.02em",
+            display: "flex",
+            flexDirection: isMobile ? "row" : "column",
+            gap: isMobile ? 5 : 4,
+            flexShrink: 0,
+          }}
+        >
+          <span>{time}</span>
+          <span>{isMobile ? "PT" : "Pacific Standard Time"}</span>
+        </div>
+
+        {/* return to top */}
         <button
           onClick={scrollToTop}
           onMouseEnter={() => setTopHover(true)}
@@ -134,61 +177,7 @@ export default function Ending() {
           Back to top
         </button>
 
-        {/* social links — top right */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#757575",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              marginBottom: 18,
-            }}
-          >
-            (SOCIAL)
-          </span>
-
-          {links.map((link) => (
-            <span
-              key={link.label}
-              onClick={() => openLink(link)}
-              onMouseEnter={() => setHovered(link.label)}
-              onMouseLeave={() => setHovered(null)}
-              style={linkStyle(link.label)}
-            >
-              {link.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* BOTTOM ROW — clock (left) + open to work (right) */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          marginTop: 80,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#757575",
-            letterSpacing: "0.02em",
-            display: "flex",
-            flexDirection: isMobile ? "row" : "column",
-            gap: isMobile ? 5 : 4,
-            flexShrink: 0,
-          }}
-        >
-          <span>{time}</span>
-          <span>{isMobile ? "PT" : "Pacific Standard Time"}</span>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
           <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
             <div
               style={{

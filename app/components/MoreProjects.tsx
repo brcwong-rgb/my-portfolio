@@ -81,7 +81,7 @@ function CompactCard({ project }: { project: Project }) {
   );
 }
 
-export default function MoreProjects({ exclude = "hackdavis" }: { exclude?: string }) {
+export default function MoreProjects({ exclude }: { exclude?: string }) {
   const projects = ALL.filter((p) => p.key !== exclude);
 
   const [isMobile, setIsMobile] = useState(false);
@@ -196,7 +196,7 @@ export default function MoreProjects({ exclude = "hackdavis" }: { exclude?: stri
         }}
       >
         <div aria-hidden style={glowStyle} />
-        {/* grain — more visible now */}
+        {/* grain */}
         <div aria-hidden style={{ position: "absolute", inset: 0, backgroundImage: NOISE_BG, backgroundRepeat: "repeat", opacity: 0.11, pointerEvents: "none", mixBlendMode: "overlay" }} />
 
         <div style={{ position: "relative" }}>

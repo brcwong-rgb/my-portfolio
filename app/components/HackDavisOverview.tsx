@@ -8,6 +8,7 @@ const BG = "#121212";
 const CARD = "#1e1e1e";
 const LINE = "#2a2a2a";
 const FONT = "Manrope, sans-serif";
+const WORK_SANS = "'Work Sans', sans-serif";
 
 const MOBILE_BREAKPOINT = 900;
 
@@ -15,13 +16,13 @@ const D = {
   heading: "Overview",
   impactTitle: "My Impact",
   impactBody:
-    "Designed and shipped the judging app that scored 100+ projects at UC Davis's collegiate hackathon.",
+    "Designed and shipped the judging app that scored 100+ projects at UC Davis's hackathon.",
   clientTitle: "The Client",
   clientBody:
-    "HackDavis, UC Davis's collegiate hackathon, supporting over 500 students. In 24 hours, more than 100 student projects are designed and engineered, and all of them need to be judged.",
+    "UC Davis's collegiate hackathon. 500+ students build 100+ projects in 24 hours — and every one needs judging.",
   challengeTitle: "The Challenge",
   challengeBody:
-    "Judges walk the venue with about five minutes per project. The app had to be mobile-first, with a map to find each team and a scoring system that captures every criterion across multiple award categories without slowing judging down.",
+    "Judges get ~5 minutes per project. The app had to be mobile-first: a map to find teams, and fast scoring across every award category.",
 };
 
 function Card({
@@ -45,7 +46,7 @@ function Card({
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 16,
+        gap: 14,
       }}
     >
       <span
@@ -54,7 +55,7 @@ function Card({
           fontWeight: 600,
           color: DIM,
           letterSpacing: "0.08em",
-          fontFamily: FONT,
+          fontFamily: WORK_SANS,
         }}
       >
         ({index})
@@ -62,9 +63,9 @@ function Card({
       <h3
         style={{
           fontSize: big
-            ? "clamp(28px, 3vw, 44px)"
-            : "clamp(24px, 2.4vw, 36px)",
-          fontWeight: 800,
+            ? "clamp(26px, 2.8vw, 40px)"
+            : "clamp(22px, 2.2vw, 30px)",
+          fontWeight: 700,
           color: INK,
           letterSpacing: "-0.03em",
           lineHeight: 1.05,
@@ -76,13 +77,13 @@ function Card({
       </h3>
       <p
         style={{
-          fontSize: 17,
-          fontWeight: 500,
-          color: INK,
+          fontSize: big ? 18 : 16,
+          fontWeight: 400,
+          color: "#D4D4D4",
           lineHeight: 1.6,
           margin: 0,
-          maxWidth: 680,
-          fontFamily: FONT,
+          maxWidth: 620,
+          fontFamily: WORK_SANS,
         }}
       >
         {body}
@@ -140,9 +141,7 @@ export default function HackDavisOverview() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : "repeat(auto-fit, minmax(300px, 1fr))",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(300px, 1fr))",
             gap: 24,
           }}
         >

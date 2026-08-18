@@ -6,6 +6,8 @@ import ShotListSection from "../components/ShotListSection";
 import FootageListSection from "../components/FootageListSection";
 import DraftFeedbackSection from "../components/DraftFeedbackSection";
 import ReflectionSection from "../components/ReflectionSection";
+import MoreProjects from "../components/MoreProjects";
+import Ending from "../components/Ending";
 
 export default function SJCCPage() {
   return (
@@ -23,6 +25,8 @@ export default function SJCCPage() {
           </>
         }
       />
+      <MoreProjects exclude="sjcc" />
+      <Ending showBackToTop={false} />
     </div>
   );
 }
