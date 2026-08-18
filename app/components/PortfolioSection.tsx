@@ -5,6 +5,11 @@ import Link from "next/link";
 
 const MOBILE_BREAKPOINT = 900;
 
+// match the hero's entrance trigger
+const START_EVENT = "site:loaded";
+const FALLBACK_MS = 1500;
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+
 type Project = {
   title: string;
   tag: string;
@@ -76,17 +81,18 @@ function MetaRow({ title, tag, year }: { title: string; tag: string; year: strin
 function ProjectCard({
   project,
   index,
+  entered,
   isMobile,
   onCardEnter,
   onCardLeave,
 }: {
   project: Project;
   index: number;
+  entered: boolean;
   isMobile: boolean;
   onCardEnter: () => void;
   onCardLeave: () => void;
 }) {
-  const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [tilt, setTilt] = useState(0);
   const [mouseTilt, setMouseTilt] = useState({ x: 0, y: 0 });
@@ -99,20 +105,6 @@ function ProjectCard({
     typeof project.hoverStart === "number" ? project.hoverStart : 0;
   const mobileFrame =
     typeof project.mobileFrame === "number" ? project.mobileFrame : 0;
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -8% 0px" }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -184,7 +176,8 @@ function ProjectCard({
     overflow: "hidden",
   };
 
-  const entranceTransform = visible ? "translateY(0px)" : "translateY(24px)";
+  // one-time entrance (on first load, same as hero) — never re-triggers on scroll
+  const entranceTransform = entered ? "translateY(0px)" : "translateY(24px)";
   const mobileTiltTransform = `perspective(1200px) rotateX(${tilt}deg)`;
   const desktopTiltTransform = `perspective(1000px) rotateX(${mouseTilt.x}deg) rotateY(${mouseTilt.y}deg)`;
 
@@ -197,18 +190,18 @@ function ProjectCard({
           onMouseLeave={handleLeave}
           onMouseMove={handleMouseMove}
           style={{
-            opacity: visible ? 1 : 0,
+            opacity: entered ? 1 : 0,
             transform: isMobile
               ? `${mobileTiltTransform} ${entranceTransform}`
               : `${desktopTiltTransform} ${entranceTransform}`,
             transformOrigin: "center center",
             transition: isMobile
-              ? `opacity 0.4s ease ${index * 0.05}s, transform 0.2s ease-out`
-              : `opacity 0.4s ease ${index * 0.05}s, transform 0.25s ease-out`,
+              ? `opacity 0.6s ${EASE} ${0.2 + index * 0.08}s, transform 0.2s ease-out`
+              : `opacity 0.6s ${EASE} ${0.2 + index * 0.08}s, transform 0.25s ease-out`,
             display: "flex",
             flexDirection: "column",
             cursor: isMobile ? "pointer" : "none",
-            willChange: "transform",
+            willChange: "transform, opacity",
             ...cardStyle,
           }}
         >
@@ -301,12 +294,29 @@ function ProjectCard({
 
 export default function PortfolioSection() {
   const [isMobile, setIsMobile] = useState(false);
+  const [entered, setEntered] = useState(false);
   const [cursorActive, setCursorActive] = useState(false);
   const dotRef = useRef<HTMLDivElement>(null);
 
   const target = useRef({ x: 0, y: 0 });
   const posRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef(0);
+
+  // one-time entrance trigger — same event + fallback as the hero
+  useEffect(() => {
+    let fired = false;
+    const go = () => {
+      if (fired) return;
+      fired = true;
+      setEntered(true);
+    };
+    window.addEventListener(START_EVENT, go);
+    const fb = setTimeout(go, FALLBACK_MS);
+    return () => {
+      window.removeEventListener(START_EVENT, go);
+      clearTimeout(fb);
+    };
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
@@ -457,6 +467,7 @@ export default function PortfolioSection() {
           key={p.title}
           project={p}
           index={i}
+          entered={entered}
           isMobile={isMobile}
           onCardEnter={() => setCursorActive(true)}
           onCardLeave={() => setCursorActive(false)}
