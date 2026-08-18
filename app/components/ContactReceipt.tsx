@@ -6,16 +6,13 @@ import { createPortal } from "react-dom";
 const INK = "#1A1A1A";
 const PAPER = "#FAFAFA";
 const MUTED = "#8A8A8A";
-const LINE = "#D8D8D8";
+const LINE = "#E2E2E2";
 const ACCENT = "#CDFE88";
 const WORK_SANS = "'Work Sans', sans-serif";
 const MANROPE = "Manrope, sans-serif";
 
 const EMAIL = "bwong127@asu.edu";
-
-function Divider() {
-  return <div style={{ borderTop: "1px dashed #C8C8C8", margin: "16px 0" }} />;
-}
+const MOBILE_BREAKPOINT = 768;
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
@@ -24,58 +21,15 @@ function MetaRow({ label, value }: { label: string; value: string }) {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "baseline",
-        padding: "4px 0",
+        padding: "6px 0",
       }}
     >
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: MUTED,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          fontFamily: WORK_SANS,
-        }}
-      >
+      <span style={{ fontSize: 11, fontWeight: 500, color: MUTED, fontFamily: WORK_SANS }}>
         {label}
       </span>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: INK,
-          fontFamily: WORK_SANS,
-          textAlign: "right",
-        }}
-      >
+      <span style={{ fontSize: 13, fontWeight: 600, color: INK, fontFamily: WORK_SANS, textAlign: "right" }}>
         {value}
       </span>
-    </div>
-  );
-}
-
-function Barcode() {
-  const widths = [2, 1, 3, 1, 2, 1, 1, 3, 2, 1, 2, 3, 1, 1, 2, 1, 3, 2, 1, 2, 1, 3, 1, 2, 1, 1, 2, 3, 1, 2, 1, 3, 2, 1, 1, 2];
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        gap: 2,
-        height: 40,
-      }}
-    >
-      {widths.map((w, i) => (
-        <div
-          key={i}
-          style={{
-            width: w,
-            height: "100%",
-            background: i % 2 === 0 ? INK : "transparent",
-          }}
-        />
-      ))}
     </div>
   );
 }
@@ -83,6 +37,7 @@ function Barcode() {
 export default function ContactReceipt() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [name, setName] = useState("");
   const [from, setFrom] = useState("");
   const [message, setMessage] = useState("");
@@ -90,8 +45,14 @@ export default function ContactReceipt() {
   const [sendHover, setSendHover] = useState(false);
   const [closeHover, setCloseHover] = useState(false);
 
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
-    setMounted(true);
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
 
   useEffect(() => {
@@ -110,7 +71,6 @@ export default function ContactReceipt() {
           year: "numeric",
           hour: "2-digit",
           minute: "2-digit",
-          second: "2-digit",
           hour12: true,
         })
       );
@@ -151,11 +111,9 @@ export default function ContactReceipt() {
   if (!mounted || !open) return null;
 
   const rowLabel: React.CSSProperties = {
-    fontSize: 10,
-    fontWeight: 600,
+    fontSize: 11,
+    fontWeight: 500,
     color: MUTED,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
     fontFamily: WORK_SANS,
   };
 
@@ -164,7 +122,7 @@ export default function ContactReceipt() {
     background: "transparent",
     border: "none",
     borderBottom: `1px solid ${LINE}`,
-    padding: "7px 0",
+    padding: "9px 0",
     fontSize: 15,
     fontWeight: 500,
     color: INK,
@@ -173,6 +131,8 @@ export default function ContactReceipt() {
     boxSizing: "border-box",
   };
 
+  const hairline = <div style={{ borderTop: `1px solid ${LINE}`, margin: "24px 0" }} />;
+
   const popup = (
     <div
       onClick={() => setOpen(false)}
@@ -180,11 +140,11 @@ export default function ContactReceipt() {
         position: "fixed",
         inset: 0,
         zIndex: 200,
-        background: "rgba(0,0,0,0.6)",
+        background: "rgba(0,0,0,0.55)",
         backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "flex-end",
+        alignItems: isMobile ? "flex-end" : "stretch",
+        justifyContent: isMobile ? "center" : "flex-end",
         animation: "receiptScrimIn 0.25s ease",
       }}
     >
@@ -193,90 +153,86 @@ export default function ContactReceipt() {
         style={{
           position: "relative",
           width: "100%",
-          maxWidth: 460,
-          maxHeight: "92vh",
+          // wider, architectural panel on desktop
+          maxWidth: isMobile ? 440 : "min(50vw, 720px)",
+          height: isMobile ? "auto" : "100%",
+          maxHeight: isMobile ? "92vh" : "100%",
           overflowY: "auto",
           background: PAPER,
           color: INK,
-          padding: "36px 32px 28px",
+          padding: isMobile ? "40px 28px 32px" : "56px 56px 44px",
           boxSizing: "border-box",
           fontFamily: WORK_SANS,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          boxShadow: "0 -12px 60px rgba(0,0,0,0.4)",
-          animation: "receiptSlideIn 0.45s cubic-bezier(0.16,1,0.3,1)",
+          // squared edges on desktop · rounded top only on mobile sheet
+          borderTopLeftRadius: isMobile ? 18 : 0,
+          borderTopRightRadius: isMobile ? 18 : 0,
+          boxShadow: isMobile
+            ? "0 -12px 60px rgba(0,0,0,0.4)"
+            : "-16px 0 70px rgba(0,0,0,0.45)",
+          display: "flex",
+          flexDirection: "column",
+          animation: isMobile
+            ? "receiptSlideUp 0.45s cubic-bezier(0.16,1,0.3,1)"
+            : "receiptSlideLeft 0.5s cubic-bezier(0.16,1,0.3,1)",
         }}
       >
-        {/* circular close button */}
-        <button
-          onClick={() => setOpen(false)}
-          onMouseEnter={() => setCloseHover(true)}
-          onMouseLeave={() => setCloseHover(false)}
-          aria-label="Close"
-          style={{
-            position: "absolute",
-            top: 20,
-            right: 20,
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "#121212",
-            border: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            transform: closeHover ? "scale(1.08)" : "scale(1)",
-            transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1)",
-          }}
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="#FAFAFA"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          >
-            <line x1="1.5" y1="1.5" x2="10.5" y2="10.5" />
-            <line x1="10.5" y1="1.5" x2="1.5" y2="10.5" />
-          </svg>
-        </button>
+        {/* HEADER — title left, Close text-button top-right (Champ-inspired) */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div
+              style={{
+                fontSize: isMobile ? 26 : 40,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.02,
+                fontFamily: MANROPE,
+                color: INK,
+                maxWidth: 380,
+              }}
+            >
+              Let&rsquo;s work together
+            </div>
+            <div style={{ ...rowLabel, marginTop: 12 }}>
+              Brandon Wong — UX + Motion Designer
+            </div>
+          </div>
 
-        {/* header — left aligned, Champ style */}
-        <div style={{ paddingTop: 2, paddingRight: 48 }}>
-          <div
+          <button
+            onClick={() => setOpen(false)}
+            onMouseEnter={() => setCloseHover(true)}
+            onMouseLeave={() => setCloseHover(false)}
             style={{
-              fontSize: 26,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              lineHeight: 1.05,
-              fontFamily: MANROPE,
-              color: INK,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              fontFamily: WORK_SANS,
+              fontSize: 14,
+              fontWeight: 600,
+              color: closeHover ? ACCENT === "#CDFE88" ? "#8AB84E" : ACCENT : INK,
+              letterSpacing: "0.01em",
+              flexShrink: 0,
+              transition: "color 0.2s ease",
+              WebkitTapHighlightColor: "transparent",
             }}
           >
-            BRANDON WONG
-          </div>
-          <div style={{ ...rowLabel, marginTop: 6 }}>UX + Motion Designer</div>
+            Close
+          </button>
         </div>
 
-        <Divider />
+        {hairline}
 
         <MetaRow label="Date" value={now} />
         <MetaRow label="Location" value="SF Bay Area" />
         <MetaRow label="Status" value="Open to opportunities" />
 
-        <Divider />
+        {hairline}
 
-        {/* form — name + email share a row */}
-        <div style={{ ...rowLabel, marginBottom: 12 }}>Order details</div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "flex", gap: 20 }}>
+        {/* FORM */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", gap: 24, flexDirection: isMobile ? "row" : "row" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ ...rowLabel, marginBottom: 3 }}>Name</div>
+              <div style={{ ...rowLabel, marginBottom: 4 }}>Name</div>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -285,7 +241,7 @@ export default function ContactReceipt() {
               />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ ...rowLabel, marginBottom: 3 }}>Email</div>
+              <div style={{ ...rowLabel, marginBottom: 4 }}>Email</div>
               <input
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -295,20 +251,23 @@ export default function ContactReceipt() {
             </div>
           </div>
           <div>
-            <div style={{ ...rowLabel, marginBottom: 3 }}>Message</div>
+            <div style={{ ...rowLabel, marginBottom: 4 }}>Message</div>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="What are you working on?"
-              rows={3}
+              rows={isMobile ? 3 : 4}
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }}
             />
           </div>
         </div>
 
-        <Divider />
+        {/* air between form and footer — the Champ negative-space move */}
+        {!isMobile && <div style={{ flex: 1, minHeight: 40 }} />}
 
-        {/* send button — green hover */}
+        {hairline}
+
+        {/* SEND */}
         <button
           onClick={handleSend}
           onMouseEnter={() => setSendHover(true)}
@@ -319,11 +278,10 @@ export default function ContactReceipt() {
             color: sendHover ? "#121212" : PAPER,
             border: "none",
             borderRadius: 0,
-            padding: "13px 0",
-            fontSize: 12,
+            padding: "16px 0",
+            fontSize: 14,
             fontWeight: 700,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
+            letterSpacing: "0.02em",
             fontFamily: WORK_SANS,
             cursor: "pointer",
             display: "flex",
@@ -333,7 +291,7 @@ export default function ContactReceipt() {
             transition: "background 0.25s ease, color 0.25s ease",
           }}
         >
-          <span>Send Message</span>
+          <span>Send message</span>
           <span
             style={{
               display: "inline-block",
@@ -345,44 +303,31 @@ export default function ContactReceipt() {
           </span>
         </button>
 
-        {/* barcode + footer */}
-        <div style={{ marginTop: 20 }}>
-          <Barcode />
-          <div
-            style={{
-              textAlign: "center",
-              fontSize: 10,
-              fontWeight: 600,
-              color: MUTED,
-              letterSpacing: "0.3em",
-              marginTop: 6,
-              fontFamily: WORK_SANS,
-            }}
-          >
-            {EMAIL.toUpperCase()}
-          </div>
-        </div>
-
         <div
           style={{
             textAlign: "center",
-            fontSize: 15,
-            fontWeight: 800,
-            letterSpacing: "0.24em",
-            marginTop: 16,
-            fontFamily: MANROPE,
-            color: INK,
+            fontSize: 10,
+            fontWeight: 600,
+            color: MUTED,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            marginTop: 20,
+            fontFamily: WORK_SANS,
           }}
         >
-          THANK YOU
+          {EMAIL}
         </div>
       </div>
 
       <style>{`
         @keyframes receiptScrimIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes receiptSlideIn {
+        @keyframes receiptSlideUp {
           from { opacity: 0; transform: translateY(40px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes receiptSlideLeft {
+          from { opacity: 0; transform: translateX(60px); }
+          to   { opacity: 1; transform: translateX(0); }
         }
       `}</style>
     </div>

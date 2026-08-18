@@ -7,16 +7,20 @@ const EMAIL_DOMAIN = "asu.edu";
 const LINKEDIN_URL = "https://www.linkedin.com/in/brandon-wong-43449827a/";
 const INSTAGRAM_URL = "https://instagram.com/bcw.png";
 
-export default function Ending() {
+export default function Ending({
+  showBackToTop = true,
+}: {
+  showBackToTop?: boolean;
+}) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [topHover, setTopHover] = useState(false);
   const [time, setTime] = useState("");
   const [isMobile, setIsMobile] = useState(false);
 
   const links = [
-    { label: "Email", type: "email" },
-    { label: "LinkedIn", type: "external", url: LINKEDIN_URL },
-    { label: "Instagram", type: "external", url: INSTAGRAM_URL },
+    { label: "Email", type: "email" as const },
+    { label: "LinkedIn", type: "external" as const, url: LINKEDIN_URL },
+    { label: "Instagram", type: "external" as const, url: INSTAGRAM_URL },
   ];
 
   useEffect(() => {
@@ -51,12 +55,10 @@ export default function Ending() {
     }
   };
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   const linkStyle = (label: string): React.CSSProperties => ({
-    fontSize: 48,
+    fontSize: isMobile ? 44 : 48,
     fontWeight: 800,
     lineHeight: 1.05,
     letterSpacing: "-0.03em",
@@ -69,6 +71,51 @@ export default function Ending() {
     userSelect: "none",
   });
 
+  const backToTop = showBackToTop ? (
+    <button
+      onClick={scrollToTop}
+      onMouseEnter={() => setTopHover(true)}
+      onMouseLeave={() => setTopHover(false)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        padding: 0,
+        fontFamily: "inherit",
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+        textTransform: "uppercase",
+        color: topHover ? "#CDFE88" : "#757575",
+        transition: "color 0.25s ease",
+        whiteSpace: "nowrap",
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={topHover ? "#CDFE88" : "#757575"}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          width: 14,
+          height: 14,
+          transition: "stroke 0.25s ease, transform 0.25s ease",
+          transform: topHover ? "translateY(-2px)" : "translateY(0)",
+        }}
+      >
+        <line x1="12" y1="19" x2="12" y2="5" />
+        <polyline points="5 12 12 5 19 12" />
+      </svg>
+      Back to top
+    </button>
+  ) : null;
+
   return (
     <section
       style={{
@@ -76,40 +123,51 @@ export default function Ending() {
         background: "#121212",
         borderTop: "1px solid #404040",
         boxSizing: "border-box",
-        padding: "96px 48px 72px",
+        padding: isMobile ? "32px 20px 56px" : "48px 48px 72px",
         minHeight: 420,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#757575",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            marginBottom: 18,
-          }}
-        >
-          (SOCIAL)
-        </span>
+      {/* TOP ROW — back-to-top (left) + social block (right), same baseline */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
+        {backToTop || <div />}
 
-        {links.map((link) => (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
           <span
-            key={link.label}
-            onClick={() => openLink(link)}
-            onMouseEnter={() => setHovered(link.label)}
-            onMouseLeave={() => setHovered(null)}
-            style={linkStyle(link.label)}
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#757575",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              marginBottom: 18,
+            }}
           >
-            {link.label}
+            (SOCIAL)
           </span>
-        ))}
+          {links.map((link) => (
+            <span
+              key={link.label}
+              onClick={() => openLink(link)}
+              onMouseEnter={() => setHovered(link.label)}
+              onMouseLeave={() => setHovered(null)}
+              style={linkStyle(link.label)}
+            >
+              {link.label}
+            </span>
+          ))}
+        </div>
       </div>
 
+      {/* BOTTOM ROW — clock + open to work */}
       <div
         style={{
           display: "flex",
@@ -134,50 +192,7 @@ export default function Ending() {
           <span>{isMobile ? "PT" : "Pacific Standard Time"}</span>
         </div>
 
-        {/* return to top */}
-        <button
-          onClick={scrollToTop}
-          onMouseEnter={() => setTopHover(true)}
-          onMouseLeave={() => setTopHover(false)}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            fontFamily: "inherit",
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            textTransform: "uppercase",
-            color: topHover ? "#CDFE88" : "#757575",
-            transition: "color 0.25s ease",
-            WebkitTapHighlightColor: "transparent",
-          }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={topHover ? "#CDFE88" : "#757575"}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              width: 14,
-              height: 14,
-              transition: "stroke 0.25s ease, transform 0.25s ease",
-              transform: topHover ? "translateY(-2px)" : "translateY(0)",
-            }}
-          >
-            <line x1="12" y1="19" x2="12" y2="5" />
-            <polyline points="5 12 12 5 19 12" />
-          </svg>
-          Back to top
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
             <div
               style={{
